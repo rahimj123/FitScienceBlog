@@ -120,6 +120,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const author = await storage.getAuthorById(parseInt(id));
       
       if (!author) {
+
+  // Admin routes
+  app.post("/api/admin/articles", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertArticleSchema.parse(req.body);
+      const article = await storage.createArticle(validatedData);
+      return res.status(201).json(article);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid article data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to create article" });
+    }
+  });
+
+  app.put("/api/admin/articles/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertArticleSchema.parse(req.body);
+      const article = await storage.updateArticle(parseInt(id), validatedData);
+      return res.json(article);
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to update article" });
+    }
+  });
+
+  app.delete("/api/admin/articles/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteArticle(parseInt(id));
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ message: "Failed to delete article" });
+    }
+  });
+
         return res.status(404).json({ message: "Author not found" });
       }
       

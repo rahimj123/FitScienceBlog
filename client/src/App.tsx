@@ -12,6 +12,7 @@ import ArticleDetail from "@/pages/ArticleDetail";
 import CategoryPage from "@/pages/CategoryPage";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import AdminDashboard from "./pages/AdminDashboard"; // Added import
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/categories/:slug" component={CategoryPage} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
+      <Route path="/admin" component={AdminDashboard} /> {/* Added admin route */}
       <Route component={NotFound} />
     </Switch>
   );
