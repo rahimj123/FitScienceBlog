@@ -22,7 +22,7 @@ const HeroSection = () => {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="text-white border-white hover:bg-primary-dark">
-                <Link href="#newsletter">
+                <Link href="/#newsletter">
                   Subscribe to Newsletter
                 </Link>
               </Button>

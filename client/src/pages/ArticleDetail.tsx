@@ -281,17 +281,18 @@ const ArticleDetail = () => {
                 <p className="mb-4">
                   Get the latest articles and insights delivered to your inbox.
                 </p>
-                <form className="space-y-4">
-                  <input
-                    type="email"
-                    placeholder="Your email address"
-                    className="w-full p-3 rounded-md text-neutral-darkest"
-                    required
-                  />
-                  <Button className="w-full bg-white text-primary hover:bg-neutral-light">
-                    Subscribe
-                  </Button>
-                </form>
+                <Button 
+                  asChild 
+                  className="w-full bg-white text-primary hover:bg-neutral-light"
+                  onClick={() => {
+                    const newsletterSection = document.getElementById('newsletter');
+                    newsletterSection?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <Link href="/#newsletter">
+                    Subscribe to Newsletter
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>

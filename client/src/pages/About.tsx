@@ -133,7 +133,7 @@ const About = () => {
             to stay updated on the latest developments.
           </p>
           <Button asChild size="lg">
-            <Link href="#newsletter">Subscribe to Our Newsletter</Link>
+            <Link href="/#newsletter">Subscribe to Our Newsletter</Link>
           </Button>
         </div>
       </div>
