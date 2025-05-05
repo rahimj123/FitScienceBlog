@@ -19,6 +19,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const articles = await storage.getAllArticles();
       return res.json(articles);
     } catch (error) {
+      console.error("Error fetching articles:", error);
       return res.status(500).json({ message: "Failed to fetch articles" });
     }
   });
@@ -35,6 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(article);
     } catch (error) {
+      console.error("Error fetching article:", error);
       return res.status(500).json({ message: "Failed to fetch article" });
     }
   });
@@ -45,6 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categories = await storage.getAllCategories();
       return res.json(categories);
     } catch (error) {
+      console.error("Error fetching categories:", error);
       return res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
@@ -61,6 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(category);
     } catch (error) {
+      console.error("Error fetching category:", error);
       return res.status(500).json({ message: "Failed to fetch category" });
     }
   });
@@ -78,6 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const articles = await storage.getArticlesByCategory(category.id);
       return res.json(articles);
     } catch (error) {
+      console.error("Error fetching articles for category:", error);
       return res.status(500).json({ message: "Failed to fetch articles for category" });
     }
   });
@@ -88,6 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const articles = await storage.getFeaturedArticles();
       return res.json(articles);
     } catch (error) {
+      console.error("Error fetching featured articles:", error);
       return res.status(500).json({ message: "Failed to fetch featured articles" });
     }
   });
@@ -99,6 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const articles = await storage.getLatestArticles(limit);
       return res.json(articles);
     } catch (error) {
+      console.error("Error fetching latest articles:", error);
       return res.status(500).json({ message: "Failed to fetch latest articles" });
     }
   });
@@ -109,6 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authors = await storage.getAllAuthors();
       return res.json(authors);
     } catch (error) {
+      console.error("Error fetching authors:", error);
       return res.status(500).json({ message: "Failed to fetch authors" });
     }
   });
@@ -120,47 +128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const author = await storage.getAuthorById(parseInt(id));
       
       if (!author) {
-
-  // Admin routes
-  app.post("/api/admin/articles", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertArticleSchema.parse(req.body);
-      const article = await storage.createArticle(validatedData);
-      return res.status(201).json(article);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid article data", errors: error.errors });
-      }
-      return res.status(500).json({ message: "Failed to create article" });
-    }
-  });
-
-  app.put("/api/admin/articles/:id", async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const validatedData = insertArticleSchema.parse(req.body);
-      const article = await storage.updateArticle(parseInt(id), validatedData);
-      return res.json(article);
-    } catch (error) {
-      return res.status(500).json({ message: "Failed to update article" });
-    }
-  });
-
-  app.delete("/api/admin/articles/:id", async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteArticle(parseInt(id));
-      return res.status(204).send();
-    } catch (error) {
-      return res.status(500).json({ message: "Failed to delete article" });
-    }
-  });
-
         return res.status(404).json({ message: "Author not found" });
       }
       
       return res.json(author);
     } catch (error) {
+      console.error("Error fetching author:", error);
       return res.status(500).json({ message: "Failed to fetch author" });
     }
   });
@@ -179,6 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subscriber = await storage.createSubscriber(validatedData);
       return res.status(201).json(subscriber);
     } catch (error) {
+      console.error("Error creating subscription:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid subscription data", errors: error.errors });
       }
@@ -193,10 +167,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contactMessage = await storage.createContactMessage(validatedData);
       return res.status(201).json({ message: "Message sent successfully" });
     } catch (error) {
+      console.error("Error creating contact message:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid contact form data", errors: error.errors });
       }
       return res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Admin routes
+  app.post("/api/admin/articles", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertArticleSchema.parse(req.body);
+      const article = await storage.createArticle(validatedData);
+      return res.status(201).json(article);
+    } catch (error) {
+      console.error("Error creating article:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid article data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to create article" });
+    }
+  });
+
+  app.put("/api/admin/articles/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertArticleSchema.parse(req.body);
+      const article = await storage.updateArticle(parseInt(id), validatedData);
+      return res.json(article);
+    } catch (error) {
+      console.error("Error updating article:", error);
+      return res.status(500).json({ message: "Failed to update article" });
+    }
+  });
+
+  app.delete("/api/admin/articles/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteArticle(parseInt(id));
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting article:", error);
+      return res.status(500).json({ message: "Failed to delete article" });
     }
   });
 
