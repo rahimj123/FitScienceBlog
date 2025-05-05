@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import SearchBar from "@/components/ui/SearchBar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const Header = () => {
   const [location] = useLocation();
@@ -88,9 +89,10 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Desktop search */}
-          <div className="hidden md:flex items-center justify-end md:flex-1 lg:w-0">
+          {/* Desktop search and theme toggle */}
+          <div className="hidden md:flex items-center justify-end gap-2 md:flex-1 lg:w-0">
             <SearchBar />
+            <ThemeToggle />
           </div>
         </div>
       </div>

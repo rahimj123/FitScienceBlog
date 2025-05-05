@@ -29,10 +29,13 @@ function Router() {
   );
 }
 
+import { ThemeProvider } from "@/components/theme-provider"
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+      <ThemeProvider defaultTheme="system" storageKey="app-theme">
+        <TooltipProvider>
         <div className="flex flex-col min-h-screen">
           <Header />
           <main className="flex-1">
@@ -42,6 +45,7 @@ function App() {
         </div>
         <Toaster />
       </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
