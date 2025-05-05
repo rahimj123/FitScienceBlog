@@ -48,9 +48,22 @@ const NewsletterSignup = () => {
   });
 
   const subscribeMutation = useMutation({
-    mutationFn: (data: SubscribeFormValues) => {
+    mutationFn: async (data: SubscribeFormValues) => {
       const { privacy, ...subscriberData } = data;
-      return apiRequest("POST", "/api/subscribers", subscriberData);
+      const response = await fetch("/api/subscribers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(subscriberData),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to subscribe");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
