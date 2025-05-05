@@ -246,7 +246,7 @@ const Contact = () => {
                 <ins
                   className="adsbygoogle"
                   style={{ display: "block" }}
-                  data-ad-client={process.env.GOOGLE_ADSENSE_ID || "ca-pub-xxxxxxxxxxxxxxxx"}
+                  data-ad-client={import.meta.env.VITE_GOOGLE_ADSENSE_ID || "ca-pub-xxxxxxxxxxxxxxxx"}
                   data-ad-slot="1234567890"
                   data-ad-format="auto"
                   data-full-width-responsive="true"

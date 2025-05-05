@@ -2,13 +2,14 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import ArticleList from "@/components/articles/ArticleList";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Category } from "@shared/schema";
 
 const Articles = () => {
   const [location] = useLocation();
   const queryParams = new URLSearchParams(location.split("?")[1] || "");
   const searchQuery = queryParams.get("search");
 
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
+  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 

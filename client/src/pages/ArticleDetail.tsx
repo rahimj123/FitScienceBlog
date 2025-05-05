@@ -123,7 +123,7 @@ const ArticleDetail = () => {
               <div>
                 <p className="text-neutral-dark mb-2">Share this article:</p>
                 <div className="flex gap-2">
-                  <FacebookShareButton url={url} quote={article.title}>
+                  <FacebookShareButton url={url}>
                     <Button size="icon" variant="outline">
                       <i className="fab fa-facebook text-primary"></i>
                     </Button>
@@ -175,7 +175,7 @@ const ArticleDetail = () => {
                 <ins
                   className="adsbygoogle"
                   style={{ display: "block" }}
-                  data-ad-client={process.env.GOOGLE_ADSENSE_ID || "ca-pub-xxxxxxxxxxxxxxxx"}
+                  data-ad-client={import.meta.env.VITE_GOOGLE_ADSENSE_ID || "ca-pub-xxxxxxxxxxxxxxxx"}
                   data-ad-slot="1234567890"
                   data-ad-format="auto"
                   data-full-width-responsive="true"
@@ -259,7 +259,7 @@ const ArticleDetail = () => {
                   dangerouslySetInnerHTML={{
                     __html: `
                       <iframe 
-                        src="//rcm-na.amazon-adsystem.com/e/cm?o=1&p=12&l=ur1&category=healthpersonalcare&f=ifr&linkID=${process.env.AMAZON_AFFILIATE_ID || 'placeholder-id'}&t=fitscience-20&tracking_id=fitscience-20" 
+                        src="//rcm-na.amazon-adsystem.com/e/cm?o=1&p=12&l=ur1&category=healthpersonalcare&f=ifr&linkID=${import.meta.env.VITE_AMAZON_AFFILIATE_ID || 'placeholder-id'}&t=fitscience-20&tracking_id=fitscience-20" 
                         width="300" 
                         height="250" 
                         scrolling="no" 
