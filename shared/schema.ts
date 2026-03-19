@@ -54,6 +54,31 @@ export const contactMessages = pgTable("contact_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Service signups table
+export const serviceSignups = pgTable("service_signups", {
+  id: serial("id").primaryKey(),
+  service: text("service").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  age: integer("age").notNull(),
+  gender: text("gender").notNull(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Weekly wellness goodness posts
+export const weeklyWellnessPosts = pgTable("weekly_wellness_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  category: text("category").notNull(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  readingTime: integer("reading_time").notNull(),
+  publishedAt: timestamp("published_at").notNull().defaultNow(),
+  isPublished: boolean("is_published").notNull().default(true),
+});
+
 // Insert schemas
 export const insertArticleSchema = createInsertSchema(articles)
   .omit({ id: true });
@@ -70,6 +95,29 @@ export const insertSubscriberSchema = createInsertSchema(subscribers)
 export const insertContactMessageSchema = createInsertSchema(contactMessages)
   .omit({ id: true, createdAt: true });
 
+export const insertServiceSignupSchema = createInsertSchema(serviceSignups)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    service: z.string().min(2, "Please choose a service"),
+    firstName: z.string().min(2, "First name is required"),
+    lastName: z.string().min(2, "Last name is required"),
+    age: z.coerce.number().int().min(18, "Clients must be at least 18").max(100, "Please enter a valid age"),
+    gender: z.enum(["Female", "Male", "Non-binary", "Prefer not to say"]),
+    email: z.string().email("Please enter a valid email address"),
+  });
+
+export const insertWeeklyWellnessPostSchema = createInsertSchema(weeklyWellnessPosts)
+  .omit({ id: true, publishedAt: true })
+  .extend({
+    title: z.string().min(5, "Title is required"),
+    slug: z.string().min(3, "Slug is required"),
+    category: z.string().min(2, "Category is required"),
+    excerpt: z.string().min(20, "Excerpt is required"),
+    content: z.string().min(40, "Content is required"),
+    readingTime: z.coerce.number().int().min(1).max(60),
+    isPublished: z.boolean().optional().default(true),
+  });
+
 // Types
 export type Article = typeof articles.$inferSelect;
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
@@ -85,3 +133,9 @@ export type InsertSubscriber = z.infer<typeof insertSubscriberSchema>;
 
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+
+export type ServiceSignup = typeof serviceSignups.$inferSelect;
+export type InsertServiceSignup = z.infer<typeof insertServiceSignupSchema>;
+
+export type WeeklyWellnessPost = typeof weeklyWellnessPosts.$inferSelect;
+export type InsertWeeklyWellnessPost = z.infer<typeof insertWeeklyWellnessPostSchema>;

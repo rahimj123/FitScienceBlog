@@ -1,21 +1,31 @@
-import HeroSection from "@/components/home/HeroSection";
-import FeaturedArticles from "@/components/home/FeaturedArticles";
-import CategoriesSection from "@/components/home/CategoriesSection";
-import LatestArticles from "@/components/home/LatestArticles";
-import NewsletterSignup from "@/components/home/NewsletterSignup";
-import FeaturedInSection from "@/components/home/FeaturedInSection";
+import { AboutSection } from "@/components/landing/AboutSection";
+import { BenefitsSection } from "@/components/landing/BenefitsSection";
+import { ContactSection } from "@/components/landing/ContactSection";
+import { CtaSection } from "@/components/landing/CtaSection";
+import { LandingFooter } from "@/components/landing/Footer";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { Navbar } from "@/components/landing/Navbar";
+import { PhilosophySection } from "@/components/landing/PhilosophySection";
+import { ServicesSection } from "@/components/landing/ServicesSection";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 
-const Home = () => {
+function Home() {
   return (
-    <>
-      <HeroSection />
-      <FeaturedArticles />
-      <CategoriesSection />
-      <LatestArticles />
-      <NewsletterSignup />
-      <FeaturedInSection />
-    </>
+    <div className="bg-background text-foreground">
+      <Navbar />
+      <main id="top">
+        <HeroSection />
+        <AboutSection />
+        <ServicesSection />
+        <BenefitsSection />
+        <TestimonialsSection />
+        <PhilosophySection />
+        <CtaSection />
+        <ContactSection />
+      </main>
+      <LandingFooter />
+    </div>
   );
-};
+}
 
 export default Home;

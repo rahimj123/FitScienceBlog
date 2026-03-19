@@ -6,7 +6,9 @@ import {
   insertCategorySchema, 
   insertAuthorSchema, 
   insertSubscriberSchema, 
-  insertContactMessageSchema 
+  insertContactMessageSchema,
+  insertServiceSignupSchema,
+  insertWeeklyWellnessPostSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -172,6 +174,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid contact form data", errors: error.errors });
       }
       return res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.post("/api/service-signups", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertServiceSignupSchema.parse(req.body);
+      const signup = await storage.createServiceSignup(validatedData);
+      return res.status(201).json({
+        message: "Signup submitted successfully",
+        signup,
+      });
+    } catch (error) {
+      console.error("Error creating service signup:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid signup data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to submit signup" });
+    }
+  });
+
+  app.get("/api/weekly-wellness-posts", async (_req: Request, res: Response) => {
+    try {
+      const posts = await storage.getWeeklyWellnessPosts();
+      return res.json(posts);
+    } catch (error) {
+      console.error("Error fetching weekly wellness posts:", error);
+      return res.status(500).json({ message: "Failed to fetch weekly wellness posts" });
+    }
+  });
+
+  app.post("/api/admin/weekly-wellness-posts", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertWeeklyWellnessPostSchema.parse(req.body);
+      const post = await storage.createWeeklyWellnessPost(validatedData);
+      return res.status(201).json(post);
+    } catch (error) {
+      console.error("Error creating weekly wellness post:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid weekly wellness post data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to create weekly wellness post" });
     }
   });
 

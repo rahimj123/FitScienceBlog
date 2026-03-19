@@ -3,10 +3,12 @@ import {
   categories, type Category, type InsertCategory,
   authors, type Author, type InsertAuthor,
   subscribers, type Subscriber, type InsertSubscriber,
-  contactMessages, type ContactMessage, type InsertContactMessage
+  contactMessages, type ContactMessage, type InsertContactMessage,
+  serviceSignups, type ServiceSignup, type InsertServiceSignup,
+  weeklyWellnessPosts, type WeeklyWellnessPost, type InsertWeeklyWellnessPost
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, like } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 // Storage interface that both in-memory and database implementations will use
 export interface IStorage {
@@ -38,6 +40,13 @@ export interface IStorage {
   
   // Contact Messages
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
+
+  // Service Signups
+  createServiceSignup(signup: InsertServiceSignup): Promise<ServiceSignup>;
+
+  // Weekly Wellness Goodness
+  getWeeklyWellnessPosts(): Promise<WeeklyWellnessPost[]>;
+  createWeeklyWellnessPost(post: InsertWeeklyWellnessPost): Promise<WeeklyWellnessPost>;
 }
 
 // Database implementation of the storage interface
@@ -146,6 +155,23 @@ export class DatabaseStorage implements IStorage {
   // Contact message methods
   async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
     const result = await db.insert(contactMessages).values(message).returning();
+    return result[0];
+  }
+
+  async createServiceSignup(signup: InsertServiceSignup): Promise<ServiceSignup> {
+    const result = await db.insert(serviceSignups).values(signup).returning();
+    return result[0];
+  }
+
+  async getWeeklyWellnessPosts(): Promise<WeeklyWellnessPost[]> {
+    return db.select()
+      .from(weeklyWellnessPosts)
+      .where(eq(weeklyWellnessPosts.isPublished, true))
+      .orderBy(desc(weeklyWellnessPosts.publishedAt));
+  }
+
+  async createWeeklyWellnessPost(post: InsertWeeklyWellnessPost): Promise<WeeklyWellnessPost> {
+    const result = await db.insert(weeklyWellnessPosts).values(post).returning();
     return result[0];
   }
 }
