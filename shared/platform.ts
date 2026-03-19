@@ -76,3 +76,36 @@ export const physicianReviewSchema = z.object({
 });
 
 export type PhysicianReviewInput = z.infer<typeof physicianReviewSchema>;
+
+export const chatbotSessionSchema = z.object({
+  sessionId: z.string().optional(),
+  profileId: z.string().optional(),
+  mode: z.enum(["guest_preview", "full_intake"]),
+  status: z.enum(["active", "paused", "completed"]).default("active"),
+  completionStatus: z.enum(["preview", "in_progress", "completed"]).default("in_progress"),
+  currentStep: z.string().min(1),
+  progressPercent: z.coerce.number().int().min(0).max(100),
+  pathwayInterest: z.string().optional(),
+  recommendedPathway: z.string().optional(),
+  routingReason: z.string().optional(),
+  email: z.string().email().optional(),
+  draft: z.record(z.any()).default({}),
+  transcript: z.array(
+    z.object({
+      role: z.enum(["assistant", "user"]),
+      content: z.string(),
+    }),
+  ).default([]),
+});
+
+export type ChatbotSessionInput = z.infer<typeof chatbotSessionSchema>;
+
+export const pathwayOverrideSchema = z.object({
+  profileId: z.string().min(1),
+  pathwayType: z.enum(["fitness_pathway", "advanced_wellness_pathway", "needs_medical_clearance"]),
+  note: z.string().min(5),
+  followUpNote: z.string().min(5),
+  dueAt: z.string().optional(),
+});
+
+export type PathwayOverrideInput = z.infer<typeof pathwayOverrideSchema>;

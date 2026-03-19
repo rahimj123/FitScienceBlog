@@ -31,6 +31,7 @@ type ClientDetail = {
   pathway: { pathwayType: string; currentStatus: string; requiresClearance: boolean } | null;
   categories: Array<{ slug: string; label: string }>;
   flags: Array<{ id: string; flagType: string; severity: string; description: string }>;
+  followUpTasks: Array<{ id: string; taskType: string; status: string; note: string; dueAt: string | null }>;
   physicianReviewStatus:
     | {
         consultationStatus: string;
@@ -62,6 +63,30 @@ type ClientDetail = {
         };
       }
     | null;
+};
+
+type ChatbotSessionRow = {
+  id: string;
+  email: string | null;
+  mode: string;
+  status: string;
+  completionStatus: string;
+  progressPercent: number;
+  recommendedPathway: string | null;
+  routingReason: string | null;
+  profileId: string | null;
+  profileName: string | null;
+  lastInteractionAt: string;
+};
+
+type FollowUpTaskRow = {
+  id: string;
+  profileId: string;
+  clientName: string;
+  taskType: string;
+  status: string;
+  note: string;
+  dueAt: string | null;
 };
 
 async function fetchWithRole<T>(url: string, role: DashboardRole, init?: RequestInit): Promise<T> {
@@ -101,6 +126,12 @@ const AdminDashboard = () => {
     labTitle: "",
     labRationale: "",
   });
+  const [overrideForm, setOverrideForm] = useState({
+    pathwayType: "fitness_pathway",
+    note: "",
+    followUpNote: "",
+    dueAt: "",
+  });
 
   const categoriesQuery = useQuery<Array<{ slug: string; label: string }>>({
     queryKey: ["platform-categories"],
@@ -120,6 +151,16 @@ const AdminDashboard = () => {
     queryKey: ["platform-client-detail", selectedClientId, role],
     queryFn: () => fetchWithRole(`/api/platform/clients/${selectedClientId}`, role),
     enabled: Boolean(selectedClientId),
+  });
+
+  const chatbotSessionsQuery = useQuery<ChatbotSessionRow[]>({
+    queryKey: ["platform-chatbot-sessions", role],
+    queryFn: () => fetchWithRole("/api/platform/chatbot/sessions", role),
+  });
+
+  const followUpTasksQuery = useQuery<FollowUpTaskRow[]>({
+    queryKey: ["platform-follow-up-tasks", role],
+    queryFn: () => fetchWithRole("/api/platform/follow-up-tasks", role),
   });
 
   const reviewMutation = useMutation({
@@ -156,6 +197,37 @@ const AdminDashboard = () => {
       toast({
         title: "Unable to save review",
         description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: async () =>
+      fetchWithRole("/api/platform/pathway-override", role, {
+        method: "POST",
+        body: JSON.stringify({
+          profileId: selectedClientId,
+          pathwayType: overrideForm.pathwayType,
+          note: overrideForm.note,
+          followUpNote: overrideForm.followUpNote,
+          dueAt: overrideForm.dueAt || undefined,
+        }),
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Pathway override saved",
+        description: "The pathway was updated and an open admin follow-up task was created for review.",
+      });
+      setOverrideForm((current) => ({ ...current, note: "", followUpNote: "", dueAt: "" }));
+      selectedClientQuery.refetch();
+      clientsQuery.refetch();
+      followUpTasksQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Unable to override pathway",
+        description: error instanceof Error ? error.message : "Please review the override details and try again.",
         variant: "destructive",
       });
     },
@@ -306,6 +378,70 @@ const AdminDashboard = () => {
                 ))}
               </CardContent>
             </Card>
+
+            <Card className="rounded-[1.75rem]">
+              <CardHeader>
+                <CardTitle className="text-2xl">Chatbot intakes</CardTitle>
+                <CardDescription>Sessions started through the guided intake assistant, including progress and recommended routing.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {chatbotSessionsQuery.data?.map((session) => (
+                  <div key={session.id} className="rounded-[1.25rem] border border-primary/10 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {session.profileName ?? session.email ?? "Guest preview session"}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {session.recommendedPathway ?? "No recommendation yet"} • {session.progressPercent}% complete
+                        </div>
+                      </div>
+                      <Button asChild variant="outline" className="rounded-full">
+                        <a href={`/api/platform/chatbot/session/${session.id}/summary.pdf`} target="_blank" rel="noreferrer">
+                          PDF
+                        </a>
+                      </Button>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">{session.routingReason ?? "No routing reason recorded yet."}</p>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      Last interaction: {new Date(session.lastInteractionAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[1.75rem]">
+              <CardHeader>
+                <CardTitle className="text-2xl">Follow-up queue</CardTitle>
+                <CardDescription>Admin-created follow-up items that still need review or outreach.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {followUpTasksQuery.data?.length ? (
+                  followUpTasksQuery.data.map((task) => (
+                    <div key={task.id} className="rounded-[1.25rem] border border-primary/10 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">{task.clientName}</div>
+                          <div className="mt-1 text-xs uppercase tracking-[0.18em] text-primary/80">{task.taskType.replaceAll("_", " ")}</div>
+                        </div>
+                        <div className="rounded-full bg-[#eef3ec] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                          {task.status}
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm text-muted-foreground">{task.note}</p>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Due: {task.dueAt ? new Date(task.dueAt).toLocaleString() : "No due date set"}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed border-primary/20 bg-[#fcfbf8] p-5 text-sm text-muted-foreground">
+                    No follow-up tasks have been created yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-6">
@@ -375,6 +511,27 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-primary/10 p-5">
+                      <h3 className="text-lg font-semibold">Open follow-up tasks</h3>
+                      {selectedClientQuery.data.followUpTasks.length ? (
+                        <div className="mt-4 space-y-3">
+                          {selectedClientQuery.data.followUpTasks.map((task) => (
+                            <div key={task.id} className="rounded-xl bg-[#fcfbf8] p-4 text-sm text-muted-foreground">
+                              <div className="font-semibold text-foreground">
+                                {task.taskType.replaceAll("_", " ")} • {task.status}
+                              </div>
+                              <div className="mt-1">{task.note}</div>
+                              <div className="mt-2 text-xs">
+                                Due: {task.dueAt ? new Date(task.dueAt).toLocaleString() : "No due date set"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-muted-foreground">No follow-up tasks are open for this client yet.</p>
+                      )}
+                    </div>
+
                     {(role === "physician" || role === "admin") && selectedClientId ? (
                       <Card className="rounded-[1.5rem] border-primary/10">
                         <CardHeader>
@@ -423,6 +580,64 @@ const AdminDashboard = () => {
                           <Button className="rounded-full" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
                             <ShieldCheck className="h-4 w-4" />
                             {reviewMutation.isPending ? "Saving..." : "Save physician review"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : null}
+
+                    {role === "admin" && selectedClientId ? (
+                      <Card className="rounded-[1.5rem] border-primary/10">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-xl">
+                            <ShieldCheck className="h-5 w-5" />
+                            Admin pathway override
+                          </CardTitle>
+                          <CardDescription>
+                            Overrides require admin review notes and automatically create a follow-up task for outreach or internal check-in.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <Label>Override pathway</Label>
+                            <select
+                              value={overrideForm.pathwayType}
+                              onChange={(e) => setOverrideForm((current) => ({ ...current, pathwayType: e.target.value }))}
+                              className="mt-2 h-12 w-full rounded-2xl border border-primary/10 bg-[#fcfbf8] px-3 text-sm"
+                            >
+                              <option value="fitness_pathway">Fitness Pathway</option>
+                              <option value="advanced_wellness_pathway">Advanced Wellness Pathway</option>
+                              <option value="needs_medical_clearance">Needs Medical Clearance / Review</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Label>Admin review note</Label>
+                            <Textarea
+                              value={overrideForm.note}
+                              onChange={(e) => setOverrideForm((current) => ({ ...current, note: e.target.value }))}
+                              className="mt-2 min-h-24 rounded-2xl"
+                              placeholder="Explain why the pathway is being adjusted."
+                            />
+                          </div>
+                          <div>
+                            <Label>Required follow-up note</Label>
+                            <Textarea
+                              value={overrideForm.followUpNote}
+                              onChange={(e) => setOverrideForm((current) => ({ ...current, followUpNote: e.target.value }))}
+                              className="mt-2 min-h-24 rounded-2xl"
+                              placeholder="Describe the follow-up action that still needs to happen."
+                            />
+                          </div>
+                          <div>
+                            <Label>Follow-up due at</Label>
+                            <Input
+                              type="datetime-local"
+                              value={overrideForm.dueAt}
+                              onChange={(e) => setOverrideForm((current) => ({ ...current, dueAt: e.target.value }))}
+                              className="mt-2 h-12 rounded-2xl"
+                            />
+                          </div>
+                          <Button className="rounded-full" onClick={() => overrideMutation.mutate()} disabled={overrideMutation.isPending}>
+                            {overrideMutation.isPending ? "Saving override..." : "Save override and create follow-up"}
                           </Button>
                         </CardContent>
                       </Card>

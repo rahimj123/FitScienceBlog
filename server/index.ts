@@ -1,10 +1,29 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+import { registerAuthRoutes } from "./auth-routes";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+const MemoryStore = createMemoryStore(session);
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "wellness-with-dr-jindani-session-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      sameSite: "lax",
+    },
+    store: new MemoryStore({
+      checkPeriod: 1000 * 60 * 60 * 24,
+    }),
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+registerAuthRoutes(app);
 
 app.use((req, res, next) => {
   const start = Date.now();

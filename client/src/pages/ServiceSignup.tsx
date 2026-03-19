@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { LandingFooter } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
 import { Reveal } from "@/components/landing/Reveal";
+import { useAuth } from "@/components/platform/AuthProvider";
 
 const stage1Questions = [
   { key: "heartCondition", label: "Have you been told to be cautious with exercise because of a heart-related concern?" },
@@ -190,6 +191,7 @@ function yesNoField(
 }
 
 function ServiceSignup() {
+  const { user } = useAuth();
   const inferredPath = useMemo(() => getServicePreference(), []);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingState>({
@@ -216,6 +218,83 @@ function ServiceSignup() {
     Number(form.screeningStage1.lightActivityMinutes || 0) +
     Number(form.screeningStage1.moderateActivityMinutes || 0) +
     Number(form.screeningStage1.vigorousActivityMinutes || 0) * 2;
+
+  const chatbotSessionQuery = useQuery<any>({
+    queryKey: ["chatbot-prefill", user?.id],
+    queryFn: async () => {
+      const params = new URLSearchParams(window.location.search);
+      const explicitSessionId = params.get("sessionId");
+      const url = explicitSessionId
+        ? `/api/platform/chatbot/session/${explicitSessionId}`
+        : "/api/platform/chatbot/my-latest";
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: typeof window !== "undefined",
+  });
+
+  useEffect(() => {
+    const draft = chatbotSessionQuery.data?.draftJson as Record<string, string | boolean> | undefined;
+    if (!draft) return;
+
+    setForm((current) => ({
+      ...current,
+      basicInfo: {
+        ...current.basicInfo,
+        firstName: String(draft.firstName ?? current.basicInfo.firstName),
+        lastName: String(draft.lastName ?? current.basicInfo.lastName),
+        dateOfBirth: String(draft.dateOfBirth ?? current.basicInfo.dateOfBirth),
+        gender: String(draft.gender ?? current.basicInfo.gender),
+        email: String(draft.email ?? current.basicInfo.email),
+        phone: String(draft.phone ?? current.basicInfo.phone),
+        emergencyContactName: String(draft.emergencyContactName ?? current.basicInfo.emergencyContactName),
+        emergencyContactPhone: String(draft.emergencyContactPhone ?? current.basicInfo.emergencyContactPhone),
+        disabilityFlag: Boolean(draft.disabilitySupport ?? current.basicInfo.disabilityFlag),
+        servicePreference:
+          draft.supportType === "wellness" || draft.pathwayInterest === "wellness_consultation"
+            ? "advanced"
+            : current.basicInfo.servicePreference,
+      },
+      screeningStage1: {
+        ...current.screeningStage1,
+        heartCondition: Boolean(draft.heartCondition ?? current.screeningStage1.heartCondition),
+        chestDiscomfort: Boolean(draft.chestDiscomfort ?? current.screeningStage1.chestDiscomfort),
+        dizzinessOrFainting: Boolean(draft.dizzinessOrFainting ?? current.screeningStage1.dizzinessOrFainting),
+        breathingIssues: Boolean(draft.breathingIssues ?? current.screeningStage1.breathingIssues),
+        diabetesManagementConcern: Boolean(draft.diabetesManagementConcern ?? current.screeningStage1.diabetesManagementConcern),
+        musculoskeletalLimitation: Boolean(draft.musculoskeletalLimitation ?? current.screeningStage1.musculoskeletalLimitation),
+        currentActivityLevel: String(draft.activityLevel ?? current.screeningStage1.currentActivityLevel) as OnboardingState["screeningStage1"]["currentActivityLevel"],
+        lightActivityMinutes: String(draft.lightMinutes ?? current.screeningStage1.lightActivityMinutes),
+        moderateActivityMinutes: String(draft.moderateMinutes ?? current.screeningStage1.moderateActivityMinutes),
+        vigorousActivityMinutes: String(draft.vigorousMinutes ?? current.screeningStage1.vigorousActivityMinutes),
+        notes: String(draft.mainGoals ?? current.screeningStage1.notes),
+      },
+      screeningStage2: {
+        ...current.screeningStage2,
+        smokingHistory: Boolean(draft.smokingHistory ?? current.screeningStage2.smokingHistory),
+        bloodPressureHistory: Boolean(draft.bloodPressureHistory ?? current.screeningStage2.bloodPressureHistory),
+        cholesterolHistory: Boolean(draft.cholesterolHistory ?? current.screeningStage2.cholesterolHistory),
+        bloodGlucoseHistory: Boolean(draft.bloodGlucoseHistory ?? current.screeningStage2.bloodGlucoseHistory),
+        medicationConsiderations: Boolean(draft.medicationConsiderations ?? current.screeningStage2.medicationConsiderations),
+        priorHospitalizations: Boolean(draft.priorHospitalizations ?? current.screeningStage2.priorHospitalizations),
+        pregnancyRelated: Boolean(draft.pregnancyRelated ?? current.screeningStage2.pregnancyRelated),
+        injuryHistory: Boolean(draft.injuryHistory ?? current.screeningStage2.injuryHistory),
+        details: String(draft.riskDetails ?? current.screeningStage2.details),
+      },
+      wellnessHistory: {
+        ...current.wellnessHistory,
+        sleepQuality: String(draft.sleepQuality ?? current.wellnessHistory.sleepQuality),
+        stressLoad: String(draft.stressLoad ?? current.wellnessHistory.stressLoad),
+        nutritionPattern: String(draft.nutritionPattern ?? current.wellnessHistory.nutritionPattern),
+        movementHistory: String(draft.exerciseHistory ?? current.wellnessHistory.movementHistory),
+        mentalWellbeing: String(draft.emotionalWellbeing ?? current.wellnessHistory.mentalWellbeing),
+        primaryGoals: String(draft.broaderGoals ?? current.wellnessHistory.primaryGoals),
+        currentBarriers: String(draft.barriers ?? current.wellnessHistory.currentBarriers),
+        advancedInterest: Boolean(draft.physicianReadiness ?? current.wellnessHistory.advancedInterest),
+      },
+    }));
+  }, [chatbotSessionQuery.data]);
 
   const submitMutation = useMutation({
     mutationFn: async () => {

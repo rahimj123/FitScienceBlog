@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { Express, Request, Response } from "express";
 import PDFDocument from "pdfkit";
 import { prisma } from "./prisma";
-import { onboardingSchema, physicianReviewSchema, platformRoleSchema } from "@shared/platform";
+import { chatbotSessionSchema, onboardingSchema, pathwayOverrideSchema, physicianReviewSchema, platformRoleSchema } from "@shared/platform";
 import { computeAge, computeWeeklyActivityMinutes, determineCategories, determinePathway } from "./platform-logic";
 import { z } from "zod";
 
@@ -24,7 +24,8 @@ async function ensureCategories() {
 }
 
 function getRole(req: Request) {
-  const parsed = platformRoleSchema.safeParse(req.header("x-user-role") ?? "admin");
+  const sessionRole = (req.session as any)?.role as string | undefined;
+  const parsed = platformRoleSchema.safeParse(req.header("x-user-role") ?? sessionRole ?? "admin");
   return parsed.success ? parsed.data : "admin";
 }
 
@@ -92,6 +93,9 @@ async function getClientSummary(profileId: string, role: string) {
           labRecommendations: true,
         },
       },
+      followUpTasks: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -113,6 +117,7 @@ async function getClientSummary(profileId: string, role: string) {
     pathway: latestPathway,
     categories: profile.clientCategories.map((item) => item.category),
     flags: profile.flags,
+    followUpTasks: profile.followUpTasks,
     physicianReviewStatus: latestReview
       ? {
           consultationStatus: latestReview.consultationStatus,
@@ -189,12 +194,207 @@ function sendSummaryPdf(res: Response, summary: Awaited<ReturnType<typeof getCli
   doc.end();
 }
 
+function sendChatSessionPdf(
+  res: Response,
+  session: {
+    id: string;
+    email: string | null;
+    recommendedPathway: string | null;
+    routingReason: string | null;
+    progressPercent: number;
+    createdAt: Date;
+    updatedAt: Date;
+    draftJson: Prisma.JsonValue | null;
+  },
+) {
+  const doc = new PDFDocument({ margin: 40 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="chatbot-session-${session.id}.pdf"`);
+  doc.pipe(res);
+
+  doc.fontSize(20).text("Wellness with Dr. Jindani");
+  doc.moveDown(0.5);
+  doc.fontSize(16).text("Chatbot Intake Summary");
+  doc.moveDown();
+  doc.fontSize(12).text(`Session ID: ${session.id}`);
+  doc.text(`Email: ${session.email ?? "Not provided"}`);
+  doc.text(`Recommended pathway: ${session.recommendedPathway ?? "Not yet determined"}`);
+  doc.text(`Completion: ${session.progressPercent}%`);
+  doc.text(`Routing reason: ${session.routingReason ?? "Not yet available"}`);
+  doc.text(`Last interaction: ${session.updatedAt.toISOString()}`);
+  doc.moveDown();
+  doc.text(`Draft snapshot: ${JSON.stringify(session.draftJson ?? {}, null, 2)}`);
+  doc.end();
+}
+
 export async function registerPlatformRoutes(app: Express) {
   await ensureCategories();
 
   app.get("/api/platform/categories", async (_req, res) => {
     const categories = await prisma.category.findMany({ orderBy: { label: "asc" } });
     return res.json(categories);
+  });
+
+  app.post("/api/platform/chatbot/session", async (req, res) => {
+    try {
+      const input = chatbotSessionSchema.parse(req.body);
+      const draftJson = input.draft as Prisma.InputJsonValue;
+      const transcriptJson = input.transcript as Prisma.InputJsonValue;
+
+      const session = input.sessionId
+        ? await prisma.chatSession.update({
+            where: { id: input.sessionId },
+            data: {
+              userId: (req.session as any)?.userId,
+              mode: input.mode,
+              status: input.status,
+              completionStatus: input.completionStatus,
+              currentStep: input.currentStep,
+              progressPercent: input.progressPercent,
+              profileId: input.profileId,
+              pathwayInterest: input.pathwayInterest,
+              recommendedPathway: input.recommendedPathway,
+              routingReason: input.routingReason,
+              email: input.email,
+              draftJson,
+              transcriptJson,
+            },
+          })
+        : await prisma.chatSession.create({
+            data: {
+              userId: (req.session as any)?.userId,
+              mode: input.mode,
+              status: input.status,
+              completionStatus: input.completionStatus,
+              currentStep: input.currentStep,
+              progressPercent: input.progressPercent,
+              profileId: input.profileId,
+              pathwayInterest: input.pathwayInterest,
+              recommendedPathway: input.recommendedPathway,
+              routingReason: input.routingReason,
+              email: input.email,
+              draftJson,
+              transcriptJson,
+            },
+          });
+
+      await prisma.$transaction([
+        prisma.chatbotMessage.deleteMany({ where: { sessionId: session.id } }),
+        prisma.intakeResponseFragment.deleteMany({ where: { sessionId: session.id } }),
+      ]);
+
+      if (input.transcript.length) {
+        await prisma.chatbotMessage.createMany({
+          data: input.transcript.map((entry) => ({
+            sessionId: session.id,
+            role: entry.role,
+            content: entry.content,
+          })),
+        });
+      }
+
+      const fragments = Object.entries(input.draft);
+      if (fragments.length) {
+        await prisma.intakeResponseFragment.createMany({
+          data: fragments.map(([fieldKey, value]) => ({
+            sessionId: session.id,
+            fieldKey,
+            valueJson: value as Prisma.InputJsonValue,
+            responseSource: "chatbot",
+            completionStatus: input.completionStatus,
+          })),
+        });
+      }
+
+      await writeAuditLog("chatbot_session_saved", "chat_session", session.id, {
+        status: session.status,
+        mode: session.mode,
+      });
+
+      return res.status(201).json(session);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid chatbot session payload", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to save chatbot session" });
+    }
+  });
+
+  app.get("/api/platform/chatbot/session/:sessionId", async (req, res) => {
+    const session = await prisma.chatSession.findUnique({
+      where: { id: req.params.sessionId },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+        fragments: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Chat session not found" });
+    }
+
+    return res.json(session);
+  });
+
+  app.get("/api/platform/chatbot/my-latest", async (req, res) => {
+    const userId = (req.session as any)?.userId as string | undefined;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const session = await prisma.chatSession.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        messages: { orderBy: { createdAt: "asc" } },
+        fragments: true,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "No saved chatbot session found" });
+    }
+
+    return res.json(session);
+  });
+
+  app.get("/api/platform/chatbot/sessions", async (_req, res) => {
+    const sessions = await prisma.chatSession.findMany({
+      orderBy: { updatedAt: "desc" },
+      include: {
+        profile: true,
+      },
+    });
+
+    return res.json(
+      sessions.map((session) => ({
+        id: session.id,
+        email: session.email,
+        mode: session.mode,
+        status: session.status,
+        completionStatus: session.completionStatus,
+        progressPercent: session.progressPercent,
+        recommendedPathway: session.recommendedPathway,
+        routingReason: session.routingReason,
+        profileId: session.profileId,
+        profileName: session.profile ? `${session.profile.firstName} ${session.profile.lastName}` : null,
+        lastInteractionAt: session.updatedAt,
+      })),
+    );
+  });
+
+  app.get("/api/platform/chatbot/session/:sessionId/summary.pdf", async (req, res) => {
+    const session = await prisma.chatSession.findUnique({
+      where: { id: req.params.sessionId },
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Chat session not found" });
+    }
+
+    return sendChatSessionPdf(res, session);
   });
 
   app.post("/api/platform/onboarding", async (req, res) => {
@@ -205,26 +405,48 @@ export async function registerPlatformRoutes(app: Express) {
       const weeklyActivityMinutes = computeWeeklyActivityMinutes(input.screeningStage1);
 
       const result = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
+        const user = await tx.user.upsert({
+          where: { email: input.basicInfo.email },
+          update: {
+            role: "client",
+          },
+          create: {
             email: input.basicInfo.email,
             role: "client",
           },
         });
 
-        const profile = await tx.profile.create({
-          data: {
-            userId: user.id,
-            firstName: input.basicInfo.firstName,
-            lastName: input.basicInfo.lastName,
-            dateOfBirth: new Date(input.basicInfo.dateOfBirth),
-            gender: input.basicInfo.gender,
-            phone: input.basicInfo.phone,
-            emergencyContactName: input.basicInfo.emergencyContactName,
-            emergencyContactPhone: input.basicInfo.emergencyContactPhone,
-            disabilityFlag: input.basicInfo.disabilityFlag,
-          },
+        const existingProfile = await tx.profile.findUnique({
+          where: { userId: user.id },
         });
+
+        const profile = existingProfile
+          ? await tx.profile.update({
+              where: { id: existingProfile.id },
+              data: {
+                firstName: input.basicInfo.firstName,
+                lastName: input.basicInfo.lastName,
+                dateOfBirth: new Date(input.basicInfo.dateOfBirth),
+                gender: input.basicInfo.gender,
+                phone: input.basicInfo.phone,
+                emergencyContactName: input.basicInfo.emergencyContactName,
+                emergencyContactPhone: input.basicInfo.emergencyContactPhone,
+                disabilityFlag: input.basicInfo.disabilityFlag,
+              },
+            })
+          : await tx.profile.create({
+              data: {
+                userId: user.id,
+                firstName: input.basicInfo.firstName,
+                lastName: input.basicInfo.lastName,
+                dateOfBirth: new Date(input.basicInfo.dateOfBirth),
+                gender: input.basicInfo.gender,
+                phone: input.basicInfo.phone,
+                emergencyContactName: input.basicInfo.emergencyContactName,
+                emergencyContactPhone: input.basicInfo.emergencyContactPhone,
+                disabilityFlag: input.basicInfo.disabilityFlag,
+              },
+            });
 
         const intakeForm = await tx.intakeForm.create({
           data: {
@@ -286,6 +508,10 @@ export async function registerPlatformRoutes(app: Express) {
             currentStatus: pathway.requiresClearance ? "awaiting_review" : "active",
             requiresClearance: pathway.requiresClearance,
           },
+        });
+
+        await tx.clientCategory.deleteMany({
+          where: { profileId: profile.id },
         });
 
         for (const slug of categories) {
@@ -491,5 +717,86 @@ export async function registerPlatformRoutes(app: Express) {
       }
       return res.status(500).json({ message: "Failed to save physician review" });
     }
+  });
+
+  app.post("/api/platform/pathway-override", async (req, res) => {
+    const role = requireRole(req, res, ["admin"]);
+    if (!role) return;
+
+    try {
+      const input = pathwayOverrideSchema.parse(req.body);
+      const adminUserId = (req.session as any)?.userId as string | undefined;
+
+      const latestPathway = await prisma.pathway.findFirst({
+        where: { profileId: input.profileId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!latestPathway) {
+        return res.status(404).json({ message: "Pathway record not found" });
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const pathway = await tx.pathway.update({
+          where: { id: latestPathway.id },
+          data: {
+            pathwayType: input.pathwayType,
+            assignedBy: "admin_override",
+            currentStatus: "admin_reviewed",
+            requiresClearance: input.pathwayType === "needs_medical_clearance",
+          },
+        });
+
+        const followUpTask = await tx.followUpTask.create({
+          data: {
+            profileId: input.profileId,
+            assignedUserId: adminUserId,
+            taskType: "admin_follow_up",
+            status: "open",
+            note: input.followUpNote,
+            dueAt: input.dueAt ? new Date(input.dueAt) : null,
+          },
+        });
+
+        return { pathway, followUpTask };
+      });
+
+      await writeAuditLog("pathway_overridden", "pathway", updated.pathway.id, {
+        profileId: input.profileId,
+        note: input.note,
+        followUpTaskId: updated.followUpTask.id,
+      });
+
+      return res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid override payload", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to override pathway" });
+    }
+  });
+
+  app.get("/api/platform/follow-up-tasks", async (req, res) => {
+    const role = requireRole(req, res, ["coach", "physician", "admin"]);
+    if (!role) return;
+
+    const tasks = await prisma.followUpTask.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        profile: true,
+      },
+    });
+
+    return res.json(
+      tasks.map((task) => ({
+        id: task.id,
+        profileId: task.profileId,
+        clientName: `${task.profile.firstName} ${task.profile.lastName}`,
+        taskType: task.taskType,
+        status: task.status,
+        note: task.note,
+        dueAt: task.dueAt,
+      })),
+    );
   });
 }

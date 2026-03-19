@@ -17,6 +17,8 @@ model User {
   profile      Profile?
   physicianReviews PhysicianReview[] @relation("PhysicianReviewer")
   auditLogs    AuditLog[]
+  chatSessions ChatSession[]
+  followUpTasks FollowUpTask[]
 }
 
 model Profile {
@@ -38,6 +40,8 @@ model Profile {
   flags                Flag[]
   clientCategories     ClientCategory[]
   physicianReviews     PhysicianReview[] @relation("ClientPhysicianReview")
+  chatbotSessions      ChatSession[]
+  followUpTasks        FollowUpTask[]
 }
 
 model IntakeForm {
@@ -192,4 +196,62 @@ model AuditLog {
   metadataJson Json?
   createdAt    DateTime @default(now())
   user         User?    @relation(fields: [userId], references: [id])
+}
+
+model FollowUpTask {
+  id             String   @id @default(cuid())
+  profileId       String
+  assignedUserId  String?
+  taskType        String
+  status          String
+  note            String
+  dueAt           DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  assignedUser    User?    @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+}
+
+model ChatSession {
+  id                 String   @id @default(cuid())
+  userId             String?
+  profileId          String?
+  mode               String
+  status             String
+  completionStatus   String   @default("in_progress")
+  currentStep        String
+  progressPercent    Int      @default(0)
+  pathwayInterest    String?
+  recommendedPathway String?
+  routingReason      String?
+  email              String?
+  draftJson          Json?
+  transcriptJson     Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  profile            Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  messages           ChatbotMessage[]
+  fragments          IntakeResponseFragment[]
+}
+
+model ChatbotMessage {
+  id         String   @id @default(cuid())
+  sessionId  String
+  role       String
+  content    String
+  createdAt  DateTime @default(now())
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model IntakeResponseFragment {
+  id               String   @id @default(cuid())
+  sessionId        String
+  fieldKey         String
+  valueJson        Json?
+  responseSource   String
+  completionStatus String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  session          ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
