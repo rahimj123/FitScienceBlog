@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String?
+  role         String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  profile      Profile?
+  physicianReviews PhysicianReview[] @relation("PhysicianReviewer")
+  auditLogs    AuditLog[]
+}
+
+model Profile {
+  id                   String      @id @default(cuid())
+  userId               String      @unique
+  firstName            String
+  lastName             String
+  dateOfBirth          DateTime
+  gender               String
+  phone                String
+  emergencyContactName String
+  emergencyContactPhone String
+  disabilityFlag       Boolean     @default(false)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intakeForms          IntakeForm[]
+  pathways             Pathway[]
+  flags                Flag[]
+  clientCategories     ClientCategory[]
+  physicianReviews     PhysicianReview[] @relation("ClientPhysicianReview")
+}
+
+model IntakeForm {
+  id                    String            @id @default(cuid())
+  profileId             String
+  servicePreference     String
+  preferredPathway      String
+  status                String
+  submittedAt           DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  onboardingVersion     String            @default("v1")
+  screeningStage1       ScreeningStage1?
+  screeningStage2       ScreeningStage2?
+  wellnessHistory       WellnessHistory?
+  consent               Consent?
+  profile               Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model ScreeningStage1 {
+  id                         String   @id @default(cuid())
+  intakeFormId               String   @unique
+  heartCondition             Boolean  @default(false)
+  chestDiscomfort            Boolean  @default(false)
+  dizzinessOrFainting        Boolean  @default(false)
+  breathingIssues            Boolean  @default(false)
+  diabetesManagementConcern  Boolean  @default(false)
+  musculoskeletalLimitation  Boolean  @default(false)
+  currentActivityLevel       String
+  lightActivityMinutes       Int      @default(0)
+  moderateActivityMinutes    Int      @default(0)
+  vigorousActivityMinutes    Int      @default(0)
+  weeklyActivityMinutes      Int
+  notes                      String?
+  intakeForm                 IntakeForm @relation(fields: [intakeFormId], references: [id], onDelete: Cascade)
+}
+
+model ScreeningStage2 {
+  id                       String   @id @default(cuid())
+  intakeFormId             String   @unique
+  ageRisk                  Boolean  @default(false)
+  smokingHistory           Boolean  @default(false)
+  bloodPressureHistory     Boolean  @default(false)
+  cholesterolHistory       Boolean  @default(false)
+  bloodGlucoseHistory      Boolean  @default(false)
+  medicationConsiderations Boolean  @default(false)
+  priorHospitalizations    Boolean  @default(false)
+  pregnancyRelated         Boolean  @default(false)
+  injuryHistory            Boolean  @default(false)
+  details                  String?
+  intakeForm               IntakeForm @relation(fields: [intakeFormId], references: [id], onDelete: Cascade)
+}
+
+model WellnessHistory {
+  id                    String   @id @default(cuid())
+  intakeFormId          String   @unique
+  sleepQuality          String
+  stressLoad            String
+  nutritionPattern      String
+  movementHistory       String
+  mentalWellbeing       String
+  primaryGoals          String
+  currentBarriers       String
+  advancedInterest      Boolean  @default(false)
+  intakeForm            IntakeForm @relation(fields: [intakeFormId], references: [id], onDelete: Cascade)
+}
+
+model Consent {
+  id                         String   @id @default(cuid())
+  intakeFormId               String   @unique
+  coachingConsent            Boolean
+  privacyConsent             Boolean
+  physicianConsultConsent    Boolean
+  liabilityAcknowledgement   Boolean
+  signature                  String
+  signedAt                   DateTime @default(now())
+  intakeForm                 IntakeForm @relation(fields: [intakeFormId], references: [id], onDelete: Cascade)
+}
+
+model Pathway {
+  id                String   @id @default(cuid())
+  profileId         String
+  pathwayType       String
+  currentStatus     String
+  requiresClearance Boolean  @default(false)
+  assignedBy        String   @default("system")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Flag {
+  id          String   @id @default(cuid())
+  profileId   String
+  flagType    String
+  severity    String
+  source      String
+  description String
+  createdAt   DateTime @default(now())
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  label       String
+  description String?
+  clients     ClientCategory[]
+}
+
+model ClientCategory {
+  id         String   @id @default(cuid())
+  profileId   String
+  categoryId  String
+  assignedAt  DateTime @default(now())
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, categoryId])
+}
+
+model PhysicianReview {
+  id                   String   @id @default(cuid())
+  profileId            String
+  physicianUserId      String?
+  consultationBookedAt DateTime?
+  consultationStatus   String
+  reviewSummary        String?
+  clearanceDecision    String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  profile              Profile  @relation("ClientPhysicianReview", fields: [profileId], references: [id], onDelete: Cascade)
+  physicianUser        User?    @relation("PhysicianReviewer", fields: [physicianUserId], references: [id])
+  labRecommendations   LabRecommendation[]
+}
+
+model LabRecommendation {
+  id                 String   @id @default(cuid())
+  physicianReviewId  String
+  title              String
+  rationale          String
+  status             String
+  createdAt          DateTime @default(now())
+  physicianReview    PhysicianReview @relation(fields: [physicianReviewId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId       String?
+  action       String
+  entityType   String
+  entityId     String
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id])
+}

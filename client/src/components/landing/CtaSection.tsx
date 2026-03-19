@@ -12,26 +12,39 @@ export function CtaSection() {
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
                 <p className="font-display text-sm uppercase tracking-[0.24em] text-primary-foreground/70">
-                  Take The Next Step
+                  Contact / CTA
                 </p>
                 <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-                  Your first session can be the start of lasting change
+                  Choose the path that best fits your needs right now
                 </h2>
                 <p className="mt-4 text-lg leading-8 text-primary-foreground/85">
-                  If you are ready to improve your health with expert support, practical guidance,
-                  and a sustainable plan, this is the right place to begin.
+                  Start with focused fitness coaching, or request the fuller wellness review pathway
+                  if you want a more coordinated experience that may include physician consultation.
                 </p>
               </div>
-              <Button
-                asChild
-                size="lg"
-                className="rounded-full bg-white px-8 text-base text-primary hover:bg-[#f5edde]"
-              >
-                <a href="#contact">
-                  {cta.final}
-                  <MoveRight className="h-4 w-4" />
-                </a>
-              </Button>
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full bg-white px-8 text-base text-primary hover:bg-[#f5edde]"
+                >
+                  <a href="/signup?service=Fitness%20Pathway">
+                    {cta.finalPrimary}
+                    <MoveRight className="h-4 w-4" />
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full border-white/30 bg-transparent px-8 text-base text-white hover:bg-white hover:text-primary"
+                >
+                  <a href="/signup?service=Full%20Wellness%20Pathway">
+                    {cta.finalSecondary}
+                    <MoveRight className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
         </Reveal>

@@ -21,11 +21,11 @@ export function LandingFooter() {
               {item.label}
             </a>
           ))}
-          <a href={socialLinks.instagram} className="transition hover:text-[#d7c49e]">
-            Instagram
+          <a href={socialLinks.linkedinRahim} className="transition hover:text-[#d7c49e]">
+            Rahim LinkedIn
           </a>
-          <a href={socialLinks.facebook} className="transition hover:text-[#d7c49e]">
-            Facebook
+          <a href={socialLinks.linkedinShireen} className="transition hover:text-[#d7c49e]">
+            Shireen LinkedIn
           </a>
         </div>
       </div>

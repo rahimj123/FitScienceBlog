@@ -31,7 +31,7 @@ export function Navbar() {
 
         <div className="hidden md:block">
           <Button asChild className="rounded-full px-6">
-            <a href="#contact">{cta.primary}</a>
+            <a href="/signup?service=Full%20Wellness%20Pathway">{cta.primary}</a>
           </Button>
         </div>
 
@@ -60,7 +60,7 @@ export function Navbar() {
               ))}
             </nav>
             <Button asChild className="mt-8 w-full rounded-full">
-              <a href="#contact">{cta.secondary}</a>
+              <a href="/signup?service=Fitness%20Pathway">{cta.secondary}</a>
             </Button>
           </SheetContent>
         </Sheet>

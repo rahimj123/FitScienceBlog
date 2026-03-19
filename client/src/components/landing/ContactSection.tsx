@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Facebook, Instagram, Mail, MapPin } from "lucide-react";
+import { Linkedin, Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { socialLinks } from "./content";
+import { cta, socialLinks } from "./content";
 import { Reveal } from "./Reveal";
 
 export function ContactSection() {
@@ -51,13 +51,21 @@ export function ContactSection() {
           <div>
             <p className="font-display text-sm uppercase tracking-[0.24em] text-primary/80">Contact</p>
             <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Start your wellness journey with a conversation
+              Ask a question or take the next step with the right pathway
             </h2>
             <p className="mt-5 max-w-xl text-lg leading-8 text-muted-foreground">
-              Reach out to ask questions, discuss your goals, or book your first consultation.
-              Support is available for adults seeking strength, mobility, fat loss, and a more
-              sustainable approach to health.
+              If you are ready to begin, choose either focused fitness coaching with Rahim or the
+              fuller wellness review pathway that may include physician consultation with Dr.
+              Shireen after intake and appropriate review.
             </p>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Button asChild className="rounded-full px-6">
+                <a href="/signup?service=Fitness%20Pathway">{cta.finalPrimary}</a>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full border-primary/20 px-6">
+                <a href="/signup?service=Full%20Wellness%20Pathway">{cta.finalSecondary}</a>
+              </Button>
+            </div>
             <div className="mt-10 space-y-5">
               <div className="flex items-start gap-4">
                 <Mail className="mt-1 h-5 w-5 text-primary" />
@@ -69,20 +77,20 @@ export function ContactSection() {
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <Instagram className="mt-1 h-5 w-5 text-primary" />
+                <Linkedin className="mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-medium text-foreground">Instagram</p>
-                  <a href={socialLinks.instagram} className="text-muted-foreground transition hover:text-primary">
-                    @wellnesswithdrjindani
+                  <p className="font-medium text-foreground">Rahim LinkedIn</p>
+                  <a href={socialLinks.linkedinRahim} className="text-muted-foreground transition hover:text-primary">
+                    linkedin.com/in/rj987
                   </a>
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <Facebook className="mt-1 h-5 w-5 text-primary" />
+                <Linkedin className="mt-1 h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-medium text-foreground">Facebook</p>
-                  <a href={socialLinks.facebook} className="text-muted-foreground transition hover:text-primary">
-                    Wellness with Dr. Jindani
+                  <p className="font-medium text-foreground">Shireen LinkedIn</p>
+                  <a href={socialLinks.linkedinShireen} className="text-muted-foreground transition hover:text-primary">
+                    linkedin.com/in/shireenjindani
                   </a>
                 </div>
               </div>

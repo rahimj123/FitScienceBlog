@@ -8,21 +8,21 @@ export function HeroSection() {
 
   return (
     <section className="relative overflow-hidden pt-10 sm:pt-14">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_top_left,_rgba(44,95,68,0.16),_transparent_40%),radial-gradient(circle_at_top_right,_rgba(185,150,92,0.14),_transparent_35%),linear-gradient(180deg,_#f8f4ee_0%,_#f7f8f4_55%,_#ffffff_100%)]" />
-      <div className="container-custom grid items-center gap-14 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+      <div className="absolute inset-x-0 top-0 -z-10 h-[34rem] bg-[radial-gradient(circle_at_top_left,_rgba(34,76,55,0.18),_transparent_40%),radial-gradient(circle_at_top_right,_rgba(185,150,92,0.16),_transparent_35%),linear-gradient(180deg,_#f8f4ee_0%,_#f7f8f4_55%,_#ffffff_100%)]" />
+      <div className="container-custom grid items-center gap-14 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
         <Reveal>
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-4 py-2 text-sm text-primary shadow-sm">
               <BadgeIcon className="h-4 w-4" />
               {badge.text}
             </div>
-            <h1 className="mt-8 max-w-3xl text-balance font-semibold leading-tight text-foreground">
-              Transform Your Health with Wellness with Dr. Jindani
+            <h1 className="mt-8 max-w-4xl text-balance font-semibold leading-tight text-foreground">
+              Whole-person wellness guided by fitness coaching and physician-informed care
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
-              Build strength, improve fitness, and create healthier habits through practical,
-              evidence-informed coaching that supports lasting change, better movement, and
-              everyday wellbeing.
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground sm:text-xl">
+              Wellness with Dr. Jindani brings together Rahim Jindani&apos;s practical movement and
+              wellness coaching with Dr. Shireen Jindani&apos;s physician-guided internal medicine
+              wellness review for clients who need a broader, more medically informed pathway.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <Button asChild size="lg" className="rounded-full px-8 text-base shadow-lg shadow-primary/20">
@@ -37,14 +37,14 @@ export function HeroSection() {
                 variant="outline"
                 className="rounded-full border-primary/20 bg-white/80 px-8 text-base text-foreground hover:bg-primary hover:text-primary-foreground"
               >
-                <a href="#services">{cta.secondary}</a>
+                <a href="/signup?service=Fitness%20Pathway">{cta.secondary}</a>
               </Button>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
               {quickStats.map((item) => (
                 <div
                   key={item.value}
-                  className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_18px_60px_-28px_rgba(39,66,53,0.28)] backdrop-blur"
+                  className="rounded-3xl border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_-28px_rgba(39,66,53,0.28)] backdrop-blur"
                 >
                   <div className="font-display text-xl text-primary">{item.value}</div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.label}</p>
@@ -62,19 +62,15 @@ export function HeroSection() {
               <div className="relative overflow-hidden rounded-[1.6rem]">
                 <img
                   src={brand.heroImage}
-                  alt="Wellness coaching session focused on movement and healthy lifestyle"
+                  alt="Collaborative wellness experience with fitness coaching and physician-guided support"
                   className="h-[26rem] w-full object-cover sm:h-[34rem]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#183222]/45 via-transparent to-transparent" />
                 <div className="absolute bottom-5 left-5 right-5 rounded-[1.5rem] border border-white/25 bg-white/18 p-5 text-white backdrop-blur-md">
                   <div className="flex items-center gap-3 text-sm font-medium">
                     <CheckCircle2 className="h-5 w-5" />
-                    Guided support for strength, mobility, and healthy habits
+                    Two distinct but connected pathways, shaped around coaching needs and physician review when appropriate
                   </div>
-                  <p className="mt-3 max-w-md text-sm leading-6 text-white/90">
-                    A premium, approachable coaching experience designed to help adults move with
-                    confidence and create meaningful long-term health change.
-                  </p>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -69,12 +69,13 @@
   }
 
   body {
-    font-family: "Manrope", sans-serif;
-    @apply antialiased bg-background text-foreground;
+    font-family: "Source Sans 3", sans-serif;
+    @apply antialiased bg-background text-foreground leading-7;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    font-family: "Source Sans 3", sans-serif;
+    @apply tracking-tight leading-tight;
   }
 
   h1 {
@@ -100,7 +101,7 @@
 
 @layer components {
   .font-display {
-    font-family: "Fraunces", serif;
+    font-family: "Source Sans 3", sans-serif;
   }
 
   .container-custom {

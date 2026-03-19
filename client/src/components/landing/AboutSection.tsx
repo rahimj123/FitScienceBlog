@@ -1,61 +1,61 @@
-import { UserRound } from "lucide-react";
-import { brand, credentials } from "./content";
+import { Linkedin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { teamMembers } from "./content";
 import { Reveal } from "./Reveal";
+import { SectionHeading } from "./SectionHeading";
 
 export function AboutSection() {
   return (
-    <section id="about" className="py-20 sm:py-24">
-      <div className="container-custom grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+    <section id="experts" className="py-20 sm:py-24">
+      <div className="container-custom">
         <Reveal>
-          <div className="rounded-[2rem] border border-primary/10 bg-[#f8f5ef] p-6 shadow-[0_20px_70px_-35px_rgba(33,56,45,0.35)] sm:p-8">
-            <div className="overflow-hidden rounded-[1.75rem] border border-white/80 bg-white shadow-inner">
-              <img
-                src={brand.founderImage}
-                alt="Founder profile placeholder for Dr. Jindani"
-                className="h-[22rem] w-full object-cover sm:h-[28rem]"
-              />
-              <div className="sr-only">Replace this founder profile image with Dr. Jindani portrait</div>
-            </div>
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {credentials.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-white p-4 shadow-sm">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{item.label}</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{item.value}</p>
+          <SectionHeading
+            eyebrow="Meet The Experts"
+            title="A premium collaborative model shaped by two distinct areas of expertise"
+            description="Clients begin with clear guidance on who they work with, what each professional does, and when physician involvement becomes part of the pathway."
+          />
+        </Reveal>
+        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+          {teamMembers.map((member, index) => (
+            <Reveal key={member.name} delay={index * 0.08}>
+              <article className="overflow-hidden rounded-[2rem] border border-primary/10 bg-white shadow-[0_22px_70px_-38px_rgba(33,56,45,0.35)]">
+                <div className="grid gap-0 md:grid-cols-[0.9fr_1.1fr]">
+                  <div className="bg-[#f6f2ea] p-5">
+                    <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-inner">
+                      <img
+                        src={member.image}
+                        alt={`${member.name} profile placeholder`}
+                        className="h-[22rem] w-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-7 sm:p-8">
+                    <p className="text-sm uppercase tracking-[0.2em] text-primary/70">{member.role}</p>
+                    <h3 className="mt-3 text-3xl font-semibold text-foreground">{member.name}</h3>
+                    <p className="mt-5 text-base leading-7 text-muted-foreground">{member.bio}</p>
+                    <div className="mt-6 rounded-[1.25rem] bg-[#f8f5ef] p-5">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary/70">Focus Area</p>
+                      <p className="mt-3 text-base leading-7 text-muted-foreground">{member.focus}</p>
+                    </div>
+                    <div className="mt-6 space-y-3">
+                      {member.credentials.map((item) => (
+                        <div key={item} className="rounded-2xl border border-primary/10 px-4 py-3 text-sm text-foreground/85">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                    <Button asChild className="mt-6 rounded-full">
+                      <a href={member.linkedin} target="_blank" rel="noreferrer">
+                        <Linkedin className="h-4 w-4" />
+                        View LinkedIn
+                      </a>
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <div>
-            <p className="font-display text-sm uppercase tracking-[0.24em] text-primary/80">About Dr. Jindani</p>
-            <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Warm, credible guidance for people who want to feel stronger and healthier
-            </h2>
-            <div className="mt-6 space-y-5 text-lg leading-8 text-muted-foreground">
-              <p>
-                Dr. Jindani brings together a professional background in wellness, fitness, health
-                education, and client support to help adults make meaningful changes they can
-                actually maintain.
-              </p>
-              <p>
-                The approach is practical, encouraging, and grounded in science. Instead of
-                extreme plans or quick fixes, clients receive clear direction, thoughtful
-                structure, and steady support tailored to their current ability and goals.
-              </p>
-              <p>
-                Whether you want to lose weight, improve mobility, build strength, or simply feel
-                more in control of your health, Wellness with Dr. Jindani is designed to help you
-                move forward with confidence.
-              </p>
-            </div>
-            <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-primary/10 bg-[#f8f5ef] px-5 py-3 text-sm text-foreground">
-              <UserRound className="h-4 w-4 text-primary" />
-              Expert-led coaching with a personal, supportive feel
-            </div>
-          </div>
-        </Reveal>
+              </article>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );

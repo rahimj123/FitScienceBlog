@@ -10,8 +10,9 @@ export function TestimonialsSection() {
         <Reveal>
           <SectionHeading
             eyebrow="Testimonials"
-            title="Support that helps clients feel capable, consistent, and cared for"
-            description="Every journey looks different, but the goal stays the same: steady progress, better confidence, and healthier routines that last."
+            title="Placeholder stories for a premium, trust-led experience"
+            description="These can be replaced later with approved client feedback once the collaborative wellness experience is live."
+            tone="light"
           />
         </Reveal>
         <div className="mt-14 grid gap-6 lg:grid-cols-3">

@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { registerPlatformRoutes } from "./platform-routes";
 import { 
   insertArticleSchema, 
   insertCategorySchema, 
@@ -14,6 +15,7 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
+  await registerPlatformRoutes(app);
 
   // Get all articles
   app.get("/api/articles", async (req: Request, res: Response) => {
