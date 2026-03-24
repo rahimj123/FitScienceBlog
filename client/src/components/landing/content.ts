@@ -88,7 +88,9 @@ export const navigation: NavItem[] = [
   { label: "Experts", href: "#experts" },
   { label: "How It Works", href: "#process" },
   { label: "Pathways", href: "#pathways" },
+  { label: "Memberships", href: "#memberships" },
   { label: "Services", href: "#services" },
+  { label: "Corporates", href: "#corporates" },
   { label: "Trust & Safety", href: "#trust" },
   { label: "Contact", href: "#contact" },
 ];

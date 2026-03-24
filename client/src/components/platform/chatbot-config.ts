@@ -1,3 +1,5 @@
+import { getMembershipTierLabel, getStageLabel, recommendMembership } from "@shared/membership";
+
 export type ChatDraft = Record<string, string | boolean>;
 
 export type ChatStep = {
@@ -27,6 +29,18 @@ export const chatbotSteps: ChatStep[] = [
   },
   { id: "mainGoals", field: "mainGoals", prompt: "What are your main goals right now?", type: "textarea" },
   {
+    id: "stageOfChange",
+    field: "stageOfChange",
+    prompt: "Which statement best matches where you are right now?",
+    type: "choice",
+    options: [
+      { label: "I am mostly exploring", value: "contemplation" },
+      { label: "I am ready to start", value: "preparation" },
+      { label: "I have started but want consistency", value: "action" },
+      { label: "I am maintaining momentum", value: "maintenance" },
+    ],
+  },
+  {
     id: "supportType",
     field: "supportType",
     prompt: "What kind of support feels most relevant at the moment?",
@@ -36,6 +50,30 @@ export const chatbotSteps: ChatStep[] = [
       { label: "Broader whole-person wellness guidance", value: "wellness" },
       { label: "Not sure yet", value: "unsure" },
     ],
+  },
+  {
+    id: "wantsCommunity",
+    field: "wantsCommunity",
+    prompt: "Would community support and group accountability help you stay engaged?",
+    type: "yesno",
+  },
+  {
+    id: "wantsAccountability",
+    field: "wantsAccountability",
+    prompt: "Would you benefit from structured accountability and milestone tracking?",
+    type: "yesno",
+  },
+  {
+    id: "professionalDemand",
+    field: "professionalDemand",
+    prompt: "Do you need a more time-efficient, premium wellness structure because of work or performance demands?",
+    type: "yesno",
+  },
+  {
+    id: "corporateInterest",
+    field: "corporateInterest",
+    prompt: "Is this support for an executive, leadership, or corporate wellness context?",
+    type: "yesno",
   },
   {
     id: "activityLevel",
@@ -272,5 +310,38 @@ export function recommendChatbotPathway(draft: ChatDraft) {
   return {
     pathway: "fitness_journey",
     reason: "Your responses fit best with a coaching-led fitness and wellness starting point.",
+  };
+}
+
+export function recommendChatbotJourney(draft: ChatDraft) {
+  const pathwayRecommendation = recommendChatbotPathway(draft);
+  const membership = recommendMembership({
+    stageOfChange:
+      typeof draft.stageOfChange === "string"
+        ? (draft.stageOfChange as "contemplation" | "preparation" | "action" | "maintenance")
+        : undefined,
+    currentActivityLevel:
+      typeof draft.activityLevel === "string"
+        ? (draft.activityLevel as "minimal" | "light" | "moderate" | "vigorous")
+        : undefined,
+    servicePreference: pathwayRecommendation.pathway === "fitness_journey" ? "fitness" : "advanced",
+    supportType: typeof draft.supportType === "string" ? (draft.supportType as "fitness" | "wellness" | "unsure") : undefined,
+    broaderSupport: pathwayRecommendation.pathway !== "fitness_journey",
+    wantsCommunity: draft.wantsCommunity === true,
+    wantsAccountability: draft.wantsAccountability === true,
+    wantsExecutiveSupport: draft.professionalDemand === true || draft.corporateInterest === true,
+    professionalDemand: draft.professionalDemand === true,
+    corporateInterest: draft.corporateInterest === true,
+    medicalFlag:
+      draft.heartCondition === true ||
+      draft.chestDiscomfort === true ||
+      draft.dizzinessOrFainting === true ||
+      draft.breathingIssues === true,
+  });
+
+  return {
+    ...pathwayRecommendation,
+    ...membership,
+    summary: `${getStageLabel(membership.stageOfChange)} stage, ${getMembershipTierLabel(membership.recommendedTier)} recommended.`,
   };
 }

@@ -17,13 +17,27 @@ function verifyPassword(password: string, stored: string) {
 }
 
 export function registerAuthRoutes(app: Express) {
+  if (!prisma) {
+    app.get("/api/auth/me", (_req, res) => res.json({ user: null }));
+    app.post("/api/auth/register", (_req, res) =>
+      res.status(503).json({ message: "Authentication is unavailable in local no-database mode." }),
+    );
+    app.post("/api/auth/login", (_req, res) =>
+      res.status(503).json({ message: "Authentication is unavailable in local no-database mode." }),
+    );
+    app.post("/api/auth/logout", (_req, res) => res.json({ success: true }));
+    return;
+  }
+
+  const prismaClient = prisma;
+
   app.get("/api/auth/me", async (req, res) => {
     const sessionUserId = (req.session as any)?.userId as string | undefined;
     if (!sessionUserId) {
       return res.json({ user: null });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prismaClient.user.findUnique({
       where: { id: sessionUserId },
       include: { profile: true },
     });
@@ -45,20 +59,20 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const input = registerSchema.parse(req.body);
-      const existing = await prisma.user.findUnique({ where: { email: input.email } });
+      const existing = await prismaClient.user.findUnique({ where: { email: input.email } });
       if (existing?.passwordHash) {
         return res.status(409).json({ message: "An account already exists for this email." });
       }
 
       const user = existing
-        ? await prisma.user.update({
+        ? await prismaClient.user.update({
             where: { email: input.email },
             data: {
               passwordHash: hashPassword(input.password),
               role: existing.role || input.role,
             },
           })
-        : await prisma.user.create({
+        : await prismaClient.user.create({
             data: {
               email: input.email,
               passwordHash: hashPassword(input.password),
@@ -80,7 +94,7 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const input = loginSchema.parse(req.body);
-      const user = await prisma.user.findUnique({ where: { email: input.email }, include: { profile: true } });
+      const user = await prismaClient.user.findUnique({ where: { email: input.email }, include: { profile: true } });
       if (!user?.passwordHash || !verifyPassword(input.password, user.passwordHash)) {
         return res.status(401).json({ message: "Invalid email or password" });
       }

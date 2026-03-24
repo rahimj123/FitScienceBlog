@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { registerMembershipRoutes } from "./membership-routes";
 import { storage } from "./storage";
 import { registerPlatformRoutes } from "./platform-routes";
 import { 
@@ -15,6 +16,7 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
+  registerMembershipRoutes(app);
   await registerPlatformRoutes(app);
 
   // Get all articles

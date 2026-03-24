@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getMembershipTierLabel, getStageLabel, recommendMembership, type StageOfChange } from "@shared/membership";
 import { LandingFooter } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
 import { Reveal } from "@/components/landing/Reveal";
@@ -160,6 +161,20 @@ function getServicePreference() {
   return "fitness";
 }
 
+function getInitialStage(): StageOfChange {
+  if (typeof window === "undefined") {
+    return "preparation";
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const membership = params.get("membership");
+  if (membership === "free") return "contemplation";
+  if (membership === "tier1") return "preparation";
+  if (membership === "tier2") return "action";
+  if (membership === "tier3") return "maintenance";
+  return "preparation";
+}
+
 function yesNoField(
   label: string,
   checked: boolean,
@@ -193,6 +208,7 @@ function yesNoField(
 function ServiceSignup() {
   const { user } = useAuth();
   const inferredPath = useMemo(() => getServicePreference(), []);
+  const [readinessStage, setReadinessStage] = useState<StageOfChange>(getInitialStage);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingState>({
     ...initialState,
@@ -211,6 +227,12 @@ function ServiceSignup() {
     requiresClearance: boolean;
     categories: string[];
     redFlags: Array<{ flagType: string; description: string }>;
+    membership: {
+      recommendedTier: "free" | "tier1" | "tier2" | "tier3";
+      stageOfChange: StageOfChange;
+      nextStep: string;
+      upgradePrompt: string;
+    };
   }>(null);
   const { toast } = useToast();
 
@@ -294,6 +316,9 @@ function ServiceSignup() {
         advancedInterest: Boolean(draft.physicianReadiness ?? current.wellnessHistory.advancedInterest),
       },
     }));
+    if (typeof draft.stageOfChange === "string") {
+      setReadinessStage(draft.stageOfChange as StageOfChange);
+    }
   }, [chatbotSessionQuery.data]);
 
   const submitMutation = useMutation({
@@ -316,11 +341,49 @@ function ServiceSignup() {
       const response = await apiRequest("POST", "/api/platform/onboarding", payload);
       return response.json();
     },
-    onSuccess: (data) => {
-      setResult(data);
+    onSuccess: async (data) => {
+      const membership = recommendMembership({
+        stageOfChange: readinessStage,
+        currentActivityLevel: form.screeningStage1.currentActivityLevel,
+        servicePreference: form.basicInfo.servicePreference,
+        supportType: form.basicInfo.servicePreference === "advanced" ? "wellness" : "fitness",
+        broaderSupport: form.basicInfo.servicePreference === "advanced" || form.wellnessHistory.advancedInterest,
+        wantsCommunity: true,
+        wantsAccountability: true,
+        wantsExecutiveSupport: false,
+        professionalDemand: false,
+        corporateInterest: false,
+        medicalFlag: data.requiresClearance || data.redFlags.length > 0,
+        email: form.basicInfo.email,
+        firstName: form.basicInfo.firstName,
+        lastName: form.basicInfo.lastName,
+        source: "onboarding",
+      });
+
+      await apiRequest("POST", "/api/membership/enroll", {
+        email: form.basicInfo.email,
+        firstName: form.basicInfo.firstName,
+        lastName: form.basicInfo.lastName,
+        chosenTier: membership.recommendedTier,
+        recommendedTier: membership.recommendedTier,
+        stageOfChange: membership.stageOfChange,
+        engagementScore: membership.engagementScore,
+        source: "onboarding",
+        corporateInterest: false,
+      });
+
+      setResult({
+        ...data,
+        membership: {
+          recommendedTier: membership.recommendedTier,
+          stageOfChange: membership.stageOfChange,
+          nextStep: membership.nextStep,
+          upgradePrompt: membership.upgradePrompt,
+        },
+      });
       toast({
         title: "Onboarding submitted",
-        description: "The intake, screening, pathway classification, and audit trail were created successfully.",
+        description: "The intake, pathway assignment, and membership recommendation were created successfully.",
       });
     },
     onError: (error) => {
@@ -404,16 +467,35 @@ function ServiceSignup() {
                         <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Assigned pathway</p>
                         <p className="mt-2 text-lg font-semibold text-foreground">{result.pathway}</p>
                       </div>
-                      <div className="rounded-2xl bg-[#f8f5ef] p-5">
-                        <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Medical clearance</p>
+                        <div className="rounded-2xl bg-[#f8f5ef] p-5">
+                          <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Medical clearance</p>
+                          <p className="mt-2 text-lg font-semibold text-foreground">
+                            {result.requiresClearance ? "Required" : "Not currently required"}
+                          </p>
+                        </div>
+                      </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-primary/10 p-5">
+                        <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Recommended membership</p>
                         <p className="mt-2 text-lg font-semibold text-foreground">
-                          {result.requiresClearance ? "Required" : "Not currently required"}
+                          {getMembershipTierLabel(result.membership.recommendedTier)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-primary/10 p-5">
+                        <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Stage of change</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground">
+                          {getStageLabel(result.membership.stageOfChange)}
                         </p>
                       </div>
                     </div>
                     <div className="rounded-2xl border border-primary/10 p-5">
                       <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Assigned categories</p>
                       <p className="mt-2 text-base text-muted-foreground">{result.categories.join(", ") || "None"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-primary/10 p-5">
+                      <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Membership next step</p>
+                      <p className="mt-2 text-base text-muted-foreground">{result.membership.nextStep}</p>
+                      <p className="mt-3 text-sm text-primary/80">{result.membership.upgradePrompt}</p>
                     </div>
                     <div className="rounded-2xl border border-primary/10 p-5">
                       <p className="text-sm uppercase tracking-[0.18em] text-primary/70">Identified flags</p>
@@ -506,6 +588,27 @@ function ServiceSignup() {
                               <Checkbox checked={form.basicInfo.disabilityFlag} onCheckedChange={(checked) => setForm((c) => ({ ...c, basicInfo: { ...c.basicInfo, disabilityFlag: Boolean(checked) } }))} />
                               <Label>Client requests disability-related support consideration</Label>
                             </div>
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Stage of change</Label>
+                          <div className="mt-3 flex flex-wrap gap-3">
+                            {[
+                              { value: "contemplation", label: "Exploring change" },
+                              { value: "preparation", label: "Ready to start" },
+                              { value: "action", label: "Already taking action" },
+                              { value: "maintenance", label: "Maintaining consistency" },
+                            ].map((option) => (
+                              <Button
+                                key={option.value}
+                                type="button"
+                                variant={readinessStage === option.value ? "default" : "outline"}
+                                className="rounded-full"
+                                onClick={() => setReadinessStage(option.value as StageOfChange)}
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
                           </div>
                         </div>
                       </div>

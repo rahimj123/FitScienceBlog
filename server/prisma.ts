@@ -5,12 +5,15 @@ declare global {
   var __platformPrisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  globalThis.__platformPrisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
-  });
+const shouldUsePrisma = Boolean(process.env.DATABASE_URL);
 
-if (process.env.NODE_ENV !== "production") {
+export const prisma = shouldUsePrisma
+  ? globalThis.__platformPrisma ??
+    new PrismaClient({
+      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    })
+  : null;
+
+if (prisma && process.env.NODE_ENV !== "production") {
   globalThis.__platformPrisma = prisma;
 }

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { AddressInfo } from "net";
 import { registerAuthRoutes } from "./auth-routes";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -75,15 +76,32 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const preferredPort = Number(process.env.PORT || 5000);
+  const fallbackPort = preferredPort === 5000 ? 5001 : preferredPort;
+  const host = "0.0.0.0";
+
+  server.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EADDRINUSE" && !process.env.PORT && preferredPort === 5000) {
+      log(`port ${preferredPort} is busy, retrying on ${fallbackPort}`);
+      server.listen({
+        port: fallbackPort,
+        host,
+      });
+      return;
+    }
+
+    throw error;
   });
+
+  server.listen(
+    {
+      port: preferredPort,
+      host,
+    },
+    () => {
+      const address = server.address() as AddressInfo | null;
+      const activePort = address?.port ?? preferredPort;
+      log(`serving on port ${activePort}`);
+    },
+  );
 })();

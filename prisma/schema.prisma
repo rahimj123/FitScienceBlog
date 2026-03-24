@@ -19,6 +19,9 @@ model User {
   auditLogs    AuditLog[]
   chatSessions ChatSession[]
   followUpTasks FollowUpTask[]
+  userMemberships UserMembership[]
+  upgradeHistory UpgradeHistory[]
+  engagementMetrics EngagementMetric[]
 }
 
 model Profile {
@@ -42,6 +45,7 @@ model Profile {
   physicianReviews     PhysicianReview[] @relation("ClientPhysicianReview")
   chatbotSessions      ChatSession[]
   followUpTasks        FollowUpTask[]
+  userMemberships      UserMembership[]
 }
 
 model IntakeForm {
@@ -254,4 +258,91 @@ model IntakeResponseFragment {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   session          ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model MembershipPlan {
+  id                   String   @id @default(cuid())
+  tier                 String   @unique
+  name                 String
+  purpose              String
+  stageFocus           Json
+  socialInterventions  Json
+  coreFeatures         Json
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  memberships          Membership[]
+}
+
+model Membership {
+  id                   String   @id @default(cuid())
+  tier                 String   @unique
+  lifecycleRole        String
+  socialDriver         String
+  upgradeTarget        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  membershipPlanId     String
+  membershipPlan       MembershipPlan @relation(fields: [membershipPlanId], references: [id], onDelete: Cascade)
+  userMemberships      UserMembership[]
+}
+
+model UserMembership {
+  id                   String   @id @default(cuid())
+  userId               String
+  profileId            String?
+  membershipId         String
+  subscriptionStatus   String
+  currentTier          String
+  recommendedTier      String
+  stageOfChange        String
+  engagementScore      Int      @default(0)
+  startedAt            DateTime @default(now())
+  renewedAt            DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile              Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  membership           Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  upgradeHistory       UpgradeHistory[]
+  engagementMetrics    EngagementMetric[]
+}
+
+model UpgradeHistory {
+  id                   String   @id @default(cuid())
+  userMembershipId     String
+  userId               String
+  fromTier             String?
+  toTier               String
+  changedBy            String   @default("system")
+  reason               String
+  changedAt            DateTime @default(now())
+  userMembership       UserMembership @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EngagementMetric {
+  id                   String   @id @default(cuid())
+  userMembershipId     String
+  userId               String
+  socialTouchpoints    Int      @default(0)
+  accountabilityTouches Int     @default(0)
+  milestoneCount       Int      @default(0)
+  engagementScore      Int      @default(0)
+  recommendedTier      String
+  recordedAt           DateTime @default(now())
+  userMembership       UserMembership @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CorporateLead {
+  id                   String   @id @default(cuid())
+  organizationName     String
+  contactName          String
+  contactEmail         String
+  teamSize             String
+  priorities           String
+  interestArea         String
+  status               String   @default("new")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }

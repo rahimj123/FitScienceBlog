@@ -14,8 +14,9 @@ const defaultCategories = [
 ];
 
 async function ensureCategories() {
+  const prismaClient = prisma!;
   for (const category of defaultCategories) {
-    await prisma.category.upsert({
+    await prismaClient.category.upsert({
       where: { slug: category.slug },
       update: category,
       create: category,
@@ -54,7 +55,7 @@ function toCsv(rows: Array<Record<string, string | number | boolean | null>>) {
 }
 
 async function writeAuditLog(action: string, entityType: string, entityId: string, metadataJson?: Record<string, unknown>) {
-  await prisma.auditLog.create({
+  await prisma!.auditLog.create({
     data: {
       action,
       entityType,
@@ -65,7 +66,7 @@ async function writeAuditLog(action: string, entityType: string, entityId: strin
 }
 
 async function getClientSummary(profileId: string, role: string) {
-  const profile = await prisma.profile.findUnique({
+  const profile = await prisma!.profile.findUnique({
     where: { id: profileId },
     include: {
       user: true,
@@ -228,10 +229,22 @@ function sendChatSessionPdf(
 }
 
 export async function registerPlatformRoutes(app: Express) {
+  if (!prisma) {
+    app.get("/api/platform/categories", (_req, res) => res.json(defaultCategories));
+    app.all("/api/platform/*", (_req, res) => {
+      return res.status(503).json({
+        message: "Platform workflows are unavailable in local no-database mode.",
+      });
+    });
+    return;
+  }
+
+  const prismaClient = prisma;
+
   await ensureCategories();
 
   app.get("/api/platform/categories", async (_req, res) => {
-    const categories = await prisma.category.findMany({ orderBy: { label: "asc" } });
+    const categories = await prismaClient.category.findMany({ orderBy: { label: "asc" } });
     return res.json(categories);
   });
 
@@ -242,7 +255,7 @@ export async function registerPlatformRoutes(app: Express) {
       const transcriptJson = input.transcript as Prisma.InputJsonValue;
 
       const session = input.sessionId
-        ? await prisma.chatSession.update({
+        ? await prismaClient.chatSession.update({
             where: { id: input.sessionId },
             data: {
               userId: (req.session as any)?.userId,
@@ -260,7 +273,7 @@ export async function registerPlatformRoutes(app: Express) {
               transcriptJson,
             },
           })
-        : await prisma.chatSession.create({
+        : await prismaClient.chatSession.create({
             data: {
               userId: (req.session as any)?.userId,
               mode: input.mode,
@@ -278,13 +291,13 @@ export async function registerPlatformRoutes(app: Express) {
             },
           });
 
-      await prisma.$transaction([
-        prisma.chatbotMessage.deleteMany({ where: { sessionId: session.id } }),
-        prisma.intakeResponseFragment.deleteMany({ where: { sessionId: session.id } }),
+      await prismaClient.$transaction([
+        prismaClient.chatbotMessage.deleteMany({ where: { sessionId: session.id } }),
+        prismaClient.intakeResponseFragment.deleteMany({ where: { sessionId: session.id } }),
       ]);
 
       if (input.transcript.length) {
-        await prisma.chatbotMessage.createMany({
+        await prismaClient.chatbotMessage.createMany({
           data: input.transcript.map((entry) => ({
             sessionId: session.id,
             role: entry.role,
@@ -295,7 +308,7 @@ export async function registerPlatformRoutes(app: Express) {
 
       const fragments = Object.entries(input.draft);
       if (fragments.length) {
-        await prisma.intakeResponseFragment.createMany({
+        await prismaClient.intakeResponseFragment.createMany({
           data: fragments.map(([fieldKey, value]) => ({
             sessionId: session.id,
             fieldKey,
@@ -321,7 +334,7 @@ export async function registerPlatformRoutes(app: Express) {
   });
 
   app.get("/api/platform/chatbot/session/:sessionId", async (req, res) => {
-    const session = await prisma.chatSession.findUnique({
+    const session = await prismaClient.chatSession.findUnique({
       where: { id: req.params.sessionId },
       include: {
         messages: {
@@ -344,7 +357,7 @@ export async function registerPlatformRoutes(app: Express) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const session = await prisma.chatSession.findFirst({
+    const session = await prismaClient.chatSession.findFirst({
       where: { userId },
       orderBy: { updatedAt: "desc" },
       include: {
@@ -361,7 +374,7 @@ export async function registerPlatformRoutes(app: Express) {
   });
 
   app.get("/api/platform/chatbot/sessions", async (_req, res) => {
-    const sessions = await prisma.chatSession.findMany({
+    const sessions = await prismaClient.chatSession.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
         profile: true,
@@ -386,7 +399,7 @@ export async function registerPlatformRoutes(app: Express) {
   });
 
   app.get("/api/platform/chatbot/session/:sessionId/summary.pdf", async (req, res) => {
-    const session = await prisma.chatSession.findUnique({
+    const session = await prismaClient.chatSession.findUnique({
       where: { id: req.params.sessionId },
     });
 
@@ -404,7 +417,7 @@ export async function registerPlatformRoutes(app: Express) {
       const pathway = determinePathway(input);
       const weeklyActivityMinutes = computeWeeklyActivityMinutes(input.screeningStage1);
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prismaClient.$transaction(async (tx) => {
         const user = await tx.user.upsert({
           where: { email: input.basicInfo.email },
           update: {
@@ -581,7 +594,7 @@ export async function registerPlatformRoutes(app: Express) {
     const pathway = req.query.pathway as string | undefined;
     const redFlag = req.query.redFlag as string | undefined;
 
-    const profiles = await prisma.profile.findMany({
+    const profiles = await prismaClient.profile.findMany({
       include: {
         user: true,
         pathways: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -619,7 +632,7 @@ export async function registerPlatformRoutes(app: Express) {
     const role = requireRole(req, res, ["coach", "physician", "admin"]);
     if (!role) return;
 
-    const profiles = await prisma.profile.findMany({
+    const profiles = await prismaClient.profile.findMany({
       include: {
         user: true,
         pathways: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -672,7 +685,7 @@ export async function registerPlatformRoutes(app: Express) {
 
     try {
       const input = physicianReviewSchema.parse(req.body);
-      const review = await prisma.$transaction(async (tx) => {
+      const review = await prismaClient.$transaction(async (tx) => {
         const created = await tx.physicianReview.create({
           data: {
             profileId: input.profileId,
@@ -727,7 +740,7 @@ export async function registerPlatformRoutes(app: Express) {
       const input = pathwayOverrideSchema.parse(req.body);
       const adminUserId = (req.session as any)?.userId as string | undefined;
 
-      const latestPathway = await prisma.pathway.findFirst({
+      const latestPathway = await prismaClient.pathway.findFirst({
         where: { profileId: input.profileId },
         orderBy: { createdAt: "desc" },
       });
@@ -736,7 +749,7 @@ export async function registerPlatformRoutes(app: Express) {
         return res.status(404).json({ message: "Pathway record not found" });
       }
 
-      const updated = await prisma.$transaction(async (tx) => {
+      const updated = await prismaClient.$transaction(async (tx) => {
         const pathway = await tx.pathway.update({
           where: { id: latestPathway.id },
           data: {
@@ -780,7 +793,7 @@ export async function registerPlatformRoutes(app: Express) {
     const role = requireRole(req, res, ["coach", "physician", "admin"]);
     if (!role) return;
 
-    const tasks = await prisma.followUpTask.findMany({
+    const tasks = await prismaClient.followUpTask.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         profile: true,

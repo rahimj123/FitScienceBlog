@@ -8,8 +8,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getMembershipTierLabel, getStageLabel } from "@shared/membership";
 import { useAuth } from "./AuthProvider";
-import { chatbotSteps, recommendChatbotPathway, type ChatDraft } from "./chatbot-config";
+import { chatbotSteps, recommendChatbotJourney, type ChatDraft } from "./chatbot-config";
 
 type Message = {
   role: "assistant" | "user";
@@ -32,13 +33,22 @@ export function ChatbotWidget() {
     {
       role: "assistant",
       content:
-        "Welcome to Wellness with Dr. Jindani. I can help you explore the available pathways, gather intake details conversationally, and guide you toward the right next step.",
+        "Welcome to Wellness with Dr. Jindani. I can identify your stage of change, suggest the right membership tier, and guide you into the most suitable next step.",
     },
   ]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [inputValue, setInputValue] = useState("");
-  const [result, setResult] = useState<null | { profileId?: string; pathway: string; requiresClearance?: boolean; categories?: string[]; redFlags?: Array<{ description: string }> }>(null);
+  const [result, setResult] = useState<null | {
+    profileId?: string;
+    pathway: string;
+    recommendedTier: "free" | "tier1" | "tier2" | "tier3";
+    stageOfChange: "precontemplation" | "contemplation" | "preparation" | "action" | "maintenance";
+    nextStep: string;
+    upgradePrompt: string;
+    categories?: string[];
+    redFlags?: Array<{ description: string }>;
+  }>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -76,7 +86,7 @@ export function ChatbotWidget() {
         silent: boolean;
       }>,
     ) => {
-      const recommendation = recommendChatbotPathway(draft);
+      const recommendation = recommendChatbotJourney(draft);
       const response = await apiRequest("POST", "/api/platform/chatbot/session", {
         sessionId: sessionId ?? undefined,
         profileId: override?.profileId ?? user?.profileId ?? undefined,
@@ -87,7 +97,7 @@ export function ChatbotWidget() {
         progressPercent,
         pathwayInterest: String(draft.pathwayInterest ?? ""),
         recommendedPathway: recommendation.pathway,
-        routingReason: recommendation.reason,
+        routingReason: `${recommendation.reason} ${recommendation.summary}`,
         email: typeof draft.email === "string" ? draft.email : undefined,
         draft,
         transcript: messages,
@@ -123,7 +133,7 @@ export function ChatbotWidget() {
 
   const completeMutation = useMutation({
     mutationFn: async () => {
-      const recommendation = recommendChatbotPathway(draft);
+      const recommendation = recommendChatbotJourney(draft);
       const onboardingPayload = {
         basicInfo: {
           firstName: String(draft.firstName ?? ""),
@@ -187,7 +197,14 @@ export function ChatbotWidget() {
       return response.json();
     },
     onSuccess: async (data) => {
-      setResult(data);
+      const recommendation = recommendChatbotJourney(draft);
+      setResult({
+        ...data,
+        recommendedTier: recommendation.recommendedTier,
+        stageOfChange: recommendation.stageOfChange,
+        nextStep: recommendation.nextStep,
+        upgradePrompt: recommendation.upgradePrompt,
+      });
       setMessages((current) => [
         ...current,
         {
@@ -274,23 +291,29 @@ export function ChatbotWidget() {
     const nextStep = activeSteps[nextIndex];
 
     if (mode === "guest_preview" && nextIndex > 6) {
-      const recommendation = recommendChatbotPathway({
+      const recommendation = recommendChatbotJourney({
         ...draft,
         [currentStep.field]: normalizedValue,
       });
-      setResult({ pathway: recommendation.pathway });
+      setResult({
+        pathway: recommendation.pathway,
+        recommendedTier: recommendation.recommendedTier,
+        stageOfChange: recommendation.stageOfChange,
+        nextStep: recommendation.nextStep,
+        upgradePrompt: recommendation.upgradePrompt,
+      });
       setMessages((current) => [
         ...current,
         {
           role: "assistant",
-          content: `${recommendation.reason} If you would like, switch to Full Guided Intake and I can save your details and route you properly.`,
+          content: `${recommendation.reason} ${recommendation.summary} If you would like, switch to Full Guided Intake and I can save your details and route you properly.`,
         },
       ]);
       return;
     }
 
     if (!nextStep) {
-      const recommendation = recommendChatbotPathway({
+      const recommendation = recommendChatbotJourney({
         ...draft,
         [currentStep.field]: normalizedValue,
       });
@@ -312,7 +335,13 @@ export function ChatbotWidget() {
       if (mode === "full_intake") {
         completeMutation.mutate();
       } else {
-        setResult({ pathway: recommendation.pathway });
+        setResult({
+          pathway: recommendation.pathway,
+          recommendedTier: recommendation.recommendedTier,
+          stageOfChange: recommendation.stageOfChange,
+          nextStep: recommendation.nextStep,
+          upgradePrompt: recommendation.upgradePrompt,
+        });
       }
       return;
     }
@@ -390,7 +419,7 @@ export function ChatbotWidget() {
           </div>
           <SheetTitle className="font-display text-2xl">Guided Intake Assistant</SheetTitle>
           <SheetDescription>
-            A calm conversational guide for pathway selection, intake, screening, and routing. Coaching support and physician consultation remain clearly distinct throughout.
+            A calm conversational guide for stage identification, membership recommendation, intake, screening, and routing. Coaching support and physician consultation remain clearly distinct throughout.
           </SheetDescription>
           <Progress value={progressPercent} className="mt-4 h-2" />
         </SheetHeader>
@@ -401,7 +430,7 @@ export function ChatbotWidget() {
               <div className="space-y-4">
                 <div className="rounded-[1.75rem] bg-white p-5 shadow-sm">
                   <p className="text-sm leading-7 text-muted-foreground">
-                    Choose how you would like to use the assistant. Guest Preview lets you explore the pathways. Full Guided Intake saves your progress and can submit your intake into the platform.
+                    Choose how you would like to use the assistant. Guest Preview lets you explore your stage, membership tier, and pathway. Full Guided Intake saves your progress and can submit your intake into the platform.
                   </p>
                   <p className="mt-3 text-xs text-muted-foreground">
                     {user
@@ -451,6 +480,14 @@ export function ChatbotWidget() {
                     <p className="text-sm text-muted-foreground">
                       Recommended pathway: <span className="font-semibold text-foreground">{result.pathway.replaceAll("_", " ")}</span>
                     </p>
+                    <p className="text-sm text-muted-foreground">
+                      Recommended membership: <span className="font-semibold text-foreground">{getMembershipTierLabel(result.recommendedTier)}</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Stage of change: <span className="font-semibold text-foreground">{getStageLabel(result.stageOfChange)}</span>
+                    </p>
+                    <p className="rounded-2xl bg-[#f8f5ef] p-4 text-sm leading-7 text-muted-foreground">{result.nextStep}</p>
+                    <p className="text-sm text-muted-foreground">{result.upgradePrompt}</p>
                     {result.categories ? (
                       <p className="text-sm text-muted-foreground">
                         Categories: {result.categories.join(", ")}
@@ -461,7 +498,13 @@ export function ChatbotWidget() {
                         <a href="/admin">Open Admin Dashboard</a>
                       </Button>
                       <Button asChild variant="outline" className="rounded-full">
-                        <a href={sessionId ? `/onboarding?sessionId=${encodeURIComponent(sessionId)}` : "/onboarding"}>
+                        <a
+                          href={
+                            sessionId
+                              ? `/onboarding?sessionId=${encodeURIComponent(sessionId)}&membership=${encodeURIComponent(result.recommendedTier)}`
+                              : `/onboarding?membership=${encodeURIComponent(result.recommendedTier)}`
+                          }
+                        >
                           Open Full Form Intake
                         </a>
                       </Button>

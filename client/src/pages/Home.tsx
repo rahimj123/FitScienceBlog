@@ -1,12 +1,14 @@
 import { AboutSection } from "@/components/landing/AboutSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { ContactSection } from "@/components/landing/ContactSection";
+import { CorporateSection } from "@/components/landing/CorporateSection";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { DisclaimerSection } from "@/components/landing/DisclaimerSection";
 import { LandingFooter } from "@/components/landing/Footer";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
 import { IntakeSection } from "@/components/landing/IntakeSection";
+import { MembershipSection } from "@/components/landing/MembershipSection";
 import { Navbar } from "@/components/landing/Navbar";
 import { PathwayComparisonSection } from "@/components/landing/PathwayComparisonSection";
 import { ServicesSection } from "@/components/landing/ServicesSection";
@@ -21,9 +23,11 @@ function Home() {
         <AboutSection />
         <HowItWorksSection />
         <PathwayComparisonSection />
+        <MembershipSection />
         <ServicesSection />
         <BenefitsSection />
         <IntakeSection />
+        <CorporateSection />
         <DisclaimerSection />
         <TestimonialsSection />
         <CtaSection />

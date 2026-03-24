@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Download, FileText, Filter, ShieldCheck, Stethoscope } from "lucide-react";
+import { Building2, Download, FileText, Filter, ShieldCheck, Stethoscope, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -89,6 +89,61 @@ type FollowUpTaskRow = {
   dueAt: string | null;
 };
 
+type MembershipSummary = {
+  counts: {
+    free: number;
+    tier1: number;
+    tier2: number;
+    tier3: number;
+    corporateLeads: number;
+  };
+  members: Array<{
+    email: string;
+    firstName: string;
+    lastName: string;
+    currentTier: "free" | "tier1" | "tier2" | "tier3";
+    recommendedTier: "free" | "tier1" | "tier2" | "tier3";
+    stageOfChange: string;
+    engagementScore: number;
+    tierLabel: string;
+    recommendedTierLabel: string;
+    organizationName: string | null;
+    metrics: {
+      score: number;
+      socialTouches: number;
+      accountabilityTouches: number;
+      milestoneCount: number;
+    } | null;
+  }>;
+  upgradeHistory: Array<{
+    id: string;
+    email: string;
+    fromTier: string | null;
+    toTier: string;
+    changedAt: string;
+    reason: string;
+  }>;
+};
+
+type CorporateLeadSummary = {
+  leads: Array<{
+    id: string;
+    organizationName: string;
+    contactName: string;
+    contactEmail: string;
+    teamSize: string;
+    priorities: string;
+    interestArea: string;
+    status: string;
+    createdAt: string;
+  }>;
+  enterpriseMetrics: {
+    activeExecutiveMembers: number;
+    organizations: number;
+    avgExecutiveEngagement: number;
+  };
+};
+
 async function fetchWithRole<T>(url: string, role: DashboardRole, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -132,6 +187,7 @@ const AdminDashboard = () => {
     followUpNote: "",
     dueAt: "",
   });
+  const [membershipOverride, setMembershipOverride] = useState<Record<string, "free" | "tier1" | "tier2" | "tier3">>({});
 
   const categoriesQuery = useQuery<Array<{ slug: string; label: string }>>({
     queryKey: ["platform-categories"],
@@ -161,6 +217,16 @@ const AdminDashboard = () => {
   const followUpTasksQuery = useQuery<FollowUpTaskRow[]>({
     queryKey: ["platform-follow-up-tasks", role],
     queryFn: () => fetchWithRole("/api/platform/follow-up-tasks", role),
+  });
+
+  const membershipSummaryQuery = useQuery<MembershipSummary>({
+    queryKey: ["membership-summary"],
+    queryFn: () => fetchWithRole("/api/membership/admin/summary", role),
+  });
+
+  const corporateLeadsQuery = useQuery<CorporateLeadSummary>({
+    queryKey: ["corporate-leads"],
+    queryFn: () => fetchWithRole("/api/membership/admin/corporate-leads", role),
   });
 
   const reviewMutation = useMutation({
@@ -233,6 +299,32 @@ const AdminDashboard = () => {
     },
   });
 
+  const membershipChangeMutation = useMutation({
+    mutationFn: async ({ email, targetTier }: { email: string; targetTier: "free" | "tier1" | "tier2" | "tier3" }) =>
+      fetchWithRole("/api/membership/admin/change-tier", role, {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          targetTier,
+          reason: "Adjusted from admin dashboard",
+        }),
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Membership tier updated",
+        description: "The membership record and upgrade history were updated.",
+      });
+      membershipSummaryQuery.refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Unable to update membership",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const stats = useMemo(() => {
     const clients = clientsQuery.data ?? [];
     return {
@@ -290,6 +382,27 @@ const AdminDashboard = () => {
             <CardHeader>
               <CardDescription>Advanced or clearance pathway</CardDescription>
               <CardTitle>{stats.advanced}</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <Card className="rounded-[1.75rem]">
+            <CardHeader>
+              <CardDescription>Tier 2 members</CardDescription>
+              <CardTitle>{membershipSummaryQuery.data?.counts.tier2 ?? 0}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="rounded-[1.75rem]">
+            <CardHeader>
+              <CardDescription>Tier 3 executive members</CardDescription>
+              <CardTitle>{membershipSummaryQuery.data?.counts.tier3 ?? 0}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="rounded-[1.75rem]">
+            <CardHeader>
+              <CardDescription>Corporate leads</CardDescription>
+              <CardTitle>{membershipSummaryQuery.data?.counts.corporateLeads ?? 0}</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -440,6 +553,73 @@ const AdminDashboard = () => {
                     No follow-up tasks have been created yet.
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[1.75rem]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <TrendingUp className="h-5 w-5" />
+                  Membership engine
+                </CardTitle>
+                <CardDescription>Tier assignments, stage-of-change mapping, and upgrade controls.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {membershipSummaryQuery.data?.members.map((member) => (
+                  <div key={member.email} className="rounded-[1.25rem] border border-primary/10 bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {member.firstName} {member.lastName}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">{member.email}</div>
+                      </div>
+                      <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                        {member.tierLabel}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                      <div>Stage: {member.stageOfChange}</div>
+                      <div>Engagement: {member.engagementScore}</div>
+                      <div>Recommended: {member.recommendedTierLabel}</div>
+                      <div>Organization: {member.organizationName ?? "Individual"}</div>
+                    </div>
+                    {member.metrics ? (
+                      <div className="mt-3 rounded-xl bg-[#fcfbf8] p-4 text-xs text-muted-foreground">
+                        Social touches {member.metrics.socialTouches} • Accountability touches {member.metrics.accountabilityTouches} • Milestones {member.metrics.milestoneCount}
+                      </div>
+                    ) : null}
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                      <select
+                        value={membershipOverride[member.email] ?? member.currentTier}
+                        onChange={(event) =>
+                          setMembershipOverride((current) => ({
+                            ...current,
+                            [member.email]: event.target.value as "free" | "tier1" | "tier2" | "tier3",
+                          }))
+                        }
+                        className="h-11 rounded-2xl border border-primary/10 bg-[#fcfbf8] px-3 text-sm"
+                      >
+                        <option value="free">Free</option>
+                        <option value="tier1">Tier 1</option>
+                        <option value="tier2">Tier 2</option>
+                        <option value="tier3">Tier 3</option>
+                      </select>
+                      <Button
+                        className="rounded-full"
+                        onClick={() =>
+                          membershipChangeMutation.mutate({
+                            email: member.email,
+                            targetTier: membershipOverride[member.email] ?? member.currentTier,
+                          })
+                        }
+                        disabled={membershipChangeMutation.isPending}
+                      >
+                        Save tier
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -643,6 +823,64 @@ const AdminDashboard = () => {
                       </Card>
                     ) : null}
                   </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[1.75rem]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <Building2 className="h-5 w-5" />
+                  Corporate pipeline
+                </CardTitle>
+                <CardDescription>Executive membership metrics and enterprise lead capture.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-[#f8f5ef] p-4 text-sm text-muted-foreground">
+                    Executive members
+                    <div className="mt-2 text-2xl font-semibold text-foreground">
+                      {corporateLeadsQuery.data?.enterpriseMetrics.activeExecutiveMembers ?? 0}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-[#f8f5ef] p-4 text-sm text-muted-foreground">
+                    Organizations
+                    <div className="mt-2 text-2xl font-semibold text-foreground">
+                      {corporateLeadsQuery.data?.enterpriseMetrics.organizations ?? 0}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-[#f8f5ef] p-4 text-sm text-muted-foreground">
+                    Avg. executive engagement
+                    <div className="mt-2 text-2xl font-semibold text-foreground">
+                      {corporateLeadsQuery.data?.enterpriseMetrics.avgExecutiveEngagement ?? 0}
+                    </div>
+                  </div>
+                </div>
+
+                {corporateLeadsQuery.data?.leads.length ? (
+                  corporateLeadsQuery.data.leads.map((lead) => (
+                    <div key={lead.id} className="rounded-[1.25rem] border border-primary/10 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">{lead.organizationName}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {lead.contactName} • {lead.contactEmail}
+                          </div>
+                        </div>
+                        <div className="rounded-full bg-[#eef3ec] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                          {lead.status}
+                        </div>
+                      </div>
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        {lead.teamSize} people • {lead.interestArea}
+                      </div>
+                      <p className="mt-3 text-sm text-muted-foreground">{lead.priorities}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed border-primary/20 bg-[#fcfbf8] p-5 text-sm text-muted-foreground">
+                    No corporate leads have been submitted yet.
+                  </div>
                 )}
               </CardContent>
             </Card>
