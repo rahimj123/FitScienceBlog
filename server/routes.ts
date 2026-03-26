@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { registerMembershipRoutes } from "./membership-routes";
+import { deleteMediaFile, saveMediaFile } from "./media-storage";
 import { storage } from "./storage";
 import { registerPlatformRoutes } from "./platform-routes";
 import { 
@@ -10,9 +11,50 @@ import {
   insertSubscriberSchema, 
   insertContactMessageSchema,
   insertServiceSignupSchema,
-  insertWeeklyWellnessPostSchema
+  insertWeeklyWellnessPostSchema,
+  insertMediaAssetSchema
 } from "@shared/schema";
 import { z } from "zod";
+
+const contentRoles = ["coach", "physician", "admin"] as const;
+
+function getContentRole(req: Request): typeof contentRoles[number] | null {
+  const requestedRole = req.header("x-user-role") ?? ((req.session as any)?.role as string | undefined) ?? null;
+  if (!requestedRole) return null;
+  return contentRoles.includes(requestedRole as (typeof contentRoles)[number])
+    ? (requestedRole as (typeof contentRoles)[number])
+    : null;
+}
+
+function requireContentRole(req: Request, res: Response, allowed: readonly (typeof contentRoles)[number][]) {
+  const role = getContentRole(req);
+  if (!role || !allowed.includes(role)) {
+    res.status(403).json({ message: "This role is not permitted for media management." });
+    return null;
+  }
+  return role;
+}
+
+const mediaUploadSchema = z.object({
+  title: z.string().min(2),
+  mediaType: z.enum(["image", "video", "audio"]),
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+  dataBase64: z.string().min(1),
+  altText: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  exerciseFocus: z.string().optional().nullable(),
+  bodyRegion: z.string().optional().nullable(),
+  equipment: z.string().optional().nullable(),
+  difficulty: z.string().optional().nullable(),
+  durationSeconds: z.coerce.number().int().min(0).optional().nullable(),
+  width: z.coerce.number().int().min(1).optional().nullable(),
+  height: z.coerce.number().int().min(1).optional().nullable(),
+  tags: z.array(z.string().min(1)).optional().default([]),
+  thumbnailBase64: z.string().optional().nullable(),
+  thumbnailMimeType: z.string().optional().nullable(),
+  isPublished: z.boolean().optional().default(true),
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -222,6 +264,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/media-assets", async (req: Request, res: Response) => {
+    try {
+      const mediaType = typeof req.query.mediaType === "string" ? req.query.mediaType : undefined;
+      const exerciseFocus = typeof req.query.exerciseFocus === "string" ? req.query.exerciseFocus : undefined;
+      const publishedQuery = typeof req.query.published === "string" ? req.query.published : undefined;
+      const isPublished =
+        publishedQuery === undefined || publishedQuery === "all" ? undefined : publishedQuery === "true";
+
+      const assets = await storage.getAllMediaAssets({
+        mediaType,
+        exerciseFocus,
+        isPublished,
+      });
+
+      return res.json(assets);
+    } catch (error) {
+      console.error("Error fetching media assets:", error);
+      return res.status(500).json({ message: "Failed to fetch media assets" });
+    }
+  });
+
+  app.get("/api/media-assets/:id", async (req: Request, res: Response) => {
+    try {
+      const asset = await storage.getMediaAssetById(parseInt(req.params.id, 10));
+
+      if (!asset) {
+        return res.status(404).json({ message: "Media asset not found" });
+      }
+
+      return res.json(asset);
+    } catch (error) {
+      console.error("Error fetching media asset:", error);
+      return res.status(500).json({ message: "Failed to fetch media asset" });
+    }
+  });
+
   // Admin routes
   app.post("/api/admin/articles", async (req: Request, res: Response) => {
     try {
@@ -257,6 +335,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting article:", error);
       return res.status(500).json({ message: "Failed to delete article" });
+    }
+  });
+
+  app.post("/api/admin/media-assets", async (req: Request, res: Response) => {
+    const role = requireContentRole(req, res, ["coach", "physician", "admin"]);
+    if (!role) return;
+    try {
+      const validatedData = insertMediaAssetSchema.parse({
+        ...req.body,
+        uploadedByRole: req.body.uploadedByRole ?? role,
+        uploadedByUserId: req.body.uploadedByUserId ?? ((req.session as any)?.userId ?? null),
+      });
+      const asset = await storage.createMediaAsset(validatedData);
+      return res.status(201).json(asset);
+    } catch (error) {
+      console.error("Error creating media asset:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid media asset data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to create media asset" });
+    }
+  });
+
+  app.post("/api/admin/media-assets/upload", async (req: Request, res: Response) => {
+    const role = requireContentRole(req, res, ["coach", "physician", "admin"]);
+    if (!role) return;
+
+    try {
+      const input = mediaUploadSchema.parse(req.body);
+      const file = await saveMediaFile(input.dataBase64, input.fileName, input.mimeType);
+
+      let thumbnailUrl: string | null = null;
+      let storageProvider = file.storageProvider;
+      if (input.thumbnailBase64 && input.thumbnailMimeType) {
+        const thumbnail = await saveMediaFile(
+          input.thumbnailBase64,
+          `thumbnail-${input.fileName}`,
+          input.thumbnailMimeType,
+        );
+        thumbnailUrl = thumbnail.storageUrl;
+        storageProvider = thumbnail.storageProvider === "local+github" || file.storageProvider === "local+github"
+          ? "local+github"
+          : file.storageProvider;
+      }
+
+      const asset = await storage.createMediaAsset({
+        title: input.title,
+        mediaType: input.mediaType,
+        originalFilename: input.fileName,
+        storageUrl: file.storageUrl,
+        remoteStorageUrl: file.remoteStorageUrl,
+        storageProvider,
+        thumbnailUrl,
+        altText: input.altText ?? null,
+        description: input.description ?? null,
+        mimeType: input.mimeType,
+        fileSizeBytes: file.fileSizeBytes,
+        durationSeconds: input.durationSeconds ?? null,
+        width: input.width ?? null,
+        height: input.height ?? null,
+        exerciseFocus: input.exerciseFocus ?? null,
+        bodyRegion: input.bodyRegion ?? null,
+        equipment: input.equipment ?? null,
+        difficulty: input.difficulty ?? null,
+        tags: input.tags ?? [],
+        uploadedByRole: role,
+        uploadedByUserId: ((req.session as any)?.userId as string | undefined) ?? null,
+        isPublished: input.isPublished ?? true,
+      });
+
+      return res.status(201).json(asset);
+    } catch (error) {
+      console.error("Error uploading media asset:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid upload payload", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to upload media asset" });
+    }
+  });
+
+  app.put("/api/admin/media-assets/:id", async (req: Request, res: Response) => {
+    const role = requireContentRole(req, res, ["coach", "physician", "admin"]);
+    if (!role) return;
+    try {
+      const validatedData = insertMediaAssetSchema.partial().parse(req.body);
+      const asset = await storage.updateMediaAsset(parseInt(req.params.id, 10), validatedData);
+
+      if (!asset) {
+        return res.status(404).json({ message: "Media asset not found" });
+      }
+
+      return res.json(asset);
+    } catch (error) {
+      console.error("Error updating media asset:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid media asset data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Failed to update media asset" });
+    }
+  });
+
+  app.delete("/api/admin/media-assets/:id", async (req: Request, res: Response) => {
+    const role = requireContentRole(req, res, ["coach", "physician", "admin"]);
+    if (!role) return;
+    try {
+      const id = parseInt(req.params.id, 10);
+      const asset = await storage.getMediaAssetById(id);
+      const deleted = await storage.deleteMediaAsset(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Media asset not found" });
+      }
+
+      await deleteMediaFile(asset?.storageUrl);
+      if (asset?.thumbnailUrl && asset.thumbnailUrl !== asset.storageUrl) {
+        await deleteMediaFile(
+          asset.thumbnailUrl.startsWith("/uploads/") ? asset.thumbnailUrl : null,
+          asset.thumbnailUrl.startsWith("/uploads/") ? asset.thumbnailUrl.replace(/^\/uploads\//, "") : null,
+        );
+      }
+
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting media asset:", error);
+      return res.status(500).json({ message: "Failed to delete media asset" });
     }
   });
 

@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { AddressInfo } from "net";
+import path from "path";
 import { registerAuthRoutes } from "./auth-routes";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -22,8 +23,9 @@ app.use(
     }),
   }),
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: false, limit: "100mb" }));
+app.use("/uploads", express.static(path.resolve(import.meta.dirname, "..", "uploads")));
 registerAuthRoutes(app);
 
 app.use((req, res, next) => {

@@ -5,10 +5,11 @@ import {
   subscribers, type Subscriber, type InsertSubscriber,
   contactMessages, type ContactMessage, type InsertContactMessage,
   serviceSignups, type ServiceSignup, type InsertServiceSignup,
-  weeklyWellnessPosts, type WeeklyWellnessPost, type InsertWeeklyWellnessPost
+  weeklyWellnessPosts, type WeeklyWellnessPost, type InsertWeeklyWellnessPost,
+  mediaAssets, type MediaAsset, type InsertMediaAsset
 } from "@shared/schema";
 import { db, hasDatabase } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 const database = db as NonNullable<typeof db>;
 
@@ -49,6 +50,17 @@ export interface IStorage {
   // Weekly Wellness Goodness
   getWeeklyWellnessPosts(): Promise<WeeklyWellnessPost[]>;
   createWeeklyWellnessPost(post: InsertWeeklyWellnessPost): Promise<WeeklyWellnessPost>;
+
+  // Media assets
+  getAllMediaAssets(filters?: {
+    mediaType?: string;
+    exerciseFocus?: string;
+    isPublished?: boolean;
+  }): Promise<MediaAsset[]>;
+  getMediaAssetById(id: number): Promise<MediaAsset | undefined>;
+  createMediaAsset(asset: InsertMediaAsset): Promise<MediaAsset>;
+  updateMediaAsset(id: number, asset: Partial<InsertMediaAsset>): Promise<MediaAsset | undefined>;
+  deleteMediaAsset(id: number): Promise<boolean>;
 }
 
 export class MemoryStorage implements IStorage {
@@ -59,6 +71,7 @@ export class MemoryStorage implements IStorage {
   private contactMessages: ContactMessage[] = [];
   private serviceSignups: ServiceSignup[] = [];
   private weeklyWellnessPosts: WeeklyWellnessPost[] = [];
+  private mediaAssets: MediaAsset[] = [];
 
   private nextId(items: Array<{ id: number }>) {
     return items.length ? Math.max(...items.map((item) => item.id)) + 1 : 1;
@@ -202,6 +215,69 @@ export class MemoryStorage implements IStorage {
     this.weeklyWellnessPosts.push(created);
     return created;
   }
+
+  async getAllMediaAssets(filters?: {
+    mediaType?: string;
+    exerciseFocus?: string;
+    isPublished?: boolean;
+  }): Promise<MediaAsset[]> {
+    return this.mediaAssets
+      .filter((asset) => {
+        if (filters?.mediaType && asset.mediaType !== filters.mediaType) return false;
+        if (filters?.exerciseFocus && asset.exerciseFocus !== filters.exerciseFocus) return false;
+        if (typeof filters?.isPublished === "boolean" && asset.isPublished !== filters.isPublished) return false;
+        return true;
+      })
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
+  async getMediaAssetById(id: number): Promise<MediaAsset | undefined> {
+    return this.mediaAssets.find((asset) => asset.id === id);
+  }
+
+  async createMediaAsset(asset: InsertMediaAsset): Promise<MediaAsset> {
+    const created: MediaAsset = {
+      ...asset,
+      id: this.nextId(this.mediaAssets),
+      originalFilename: asset.originalFilename ?? null,
+      remoteStorageUrl: asset.remoteStorageUrl ?? null,
+      storageProvider: asset.storageProvider ?? null,
+      tags: asset.tags ?? [],
+      thumbnailUrl: asset.thumbnailUrl ?? null,
+      altText: asset.altText ?? null,
+      description: asset.description ?? null,
+      mimeType: asset.mimeType ?? null,
+      fileSizeBytes: asset.fileSizeBytes ?? null,
+      durationSeconds: asset.durationSeconds ?? null,
+      width: asset.width ?? null,
+      height: asset.height ?? null,
+      exerciseFocus: asset.exerciseFocus ?? null,
+      bodyRegion: asset.bodyRegion ?? null,
+      equipment: asset.equipment ?? null,
+      difficulty: asset.difficulty ?? null,
+      uploadedByRole: asset.uploadedByRole ?? null,
+      uploadedByUserId: asset.uploadedByUserId ?? null,
+      isPublished: asset.isPublished ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.mediaAssets.push(created);
+    return created;
+  }
+
+  async updateMediaAsset(id: number, assetUpdate: Partial<InsertMediaAsset>): Promise<MediaAsset | undefined> {
+    const existing = await this.getMediaAssetById(id);
+    if (!existing) return undefined;
+    Object.assign(existing, assetUpdate, { updatedAt: new Date() });
+    return existing;
+  }
+
+  async deleteMediaAsset(id: number): Promise<boolean> {
+    const index = this.mediaAssets.findIndex((asset) => asset.id === id);
+    if (index === -1) return false;
+    this.mediaAssets.splice(index, 1);
+    return true;
+  }
 }
 
 // Database implementation of the storage interface
@@ -328,6 +404,54 @@ export class DatabaseStorage implements IStorage {
   async createWeeklyWellnessPost(post: InsertWeeklyWellnessPost): Promise<WeeklyWellnessPost> {
     const result = await database.insert(weeklyWellnessPosts).values(post).returning();
     return result[0];
+  }
+
+  async getAllMediaAssets(filters?: {
+    mediaType?: string;
+    exerciseFocus?: string;
+    isPublished?: boolean;
+  }): Promise<MediaAsset[]> {
+    const conditions = [];
+    if (filters?.mediaType) {
+      conditions.push(eq(mediaAssets.mediaType, filters.mediaType));
+    }
+    if (filters?.exerciseFocus) {
+      conditions.push(eq(mediaAssets.exerciseFocus, filters.exerciseFocus));
+    }
+    if (typeof filters?.isPublished === "boolean") {
+      conditions.push(eq(mediaAssets.isPublished, filters.isPublished));
+    }
+
+    const query = database.select().from(mediaAssets);
+    return conditions.length
+      ? query.where(and(...conditions)).orderBy(desc(mediaAssets.updatedAt))
+      : query.orderBy(desc(mediaAssets.updatedAt));
+  }
+
+  async getMediaAssetById(id: number): Promise<MediaAsset | undefined> {
+    const result = await database.select().from(mediaAssets).where(eq(mediaAssets.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createMediaAsset(asset: InsertMediaAsset): Promise<MediaAsset> {
+    const result = await database.insert(mediaAssets).values(asset).returning();
+    return result[0];
+  }
+
+  async updateMediaAsset(id: number, assetUpdate: Partial<InsertMediaAsset>): Promise<MediaAsset | undefined> {
+    const result = await database.update(mediaAssets)
+      .set({
+        ...assetUpdate,
+        updatedAt: new Date(),
+      })
+      .where(eq(mediaAssets.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteMediaAsset(id: number): Promise<boolean> {
+    const result = await database.delete(mediaAssets).where(eq(mediaAssets.id, id)).returning();
+    return result.length > 0;
   }
 }
 

@@ -79,6 +79,35 @@ export const weeklyWellnessPosts = pgTable("weekly_wellness_posts", {
   isPublished: boolean("is_published").notNull().default(true),
 });
 
+// Media assets for exercise videos, images, and related content
+export const mediaAssets = pgTable("media_assets", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  mediaType: text("media_type").notNull(),
+  originalFilename: text("original_filename"),
+  storageUrl: text("storage_url").notNull(),
+  remoteStorageUrl: text("remote_storage_url"),
+  storageProvider: text("storage_provider"),
+  thumbnailUrl: text("thumbnail_url"),
+  altText: text("alt_text"),
+  description: text("description"),
+  mimeType: text("mime_type"),
+  fileSizeBytes: integer("file_size_bytes"),
+  durationSeconds: integer("duration_seconds"),
+  width: integer("width"),
+  height: integer("height"),
+  exerciseFocus: text("exercise_focus"),
+  bodyRegion: text("body_region"),
+  equipment: text("equipment"),
+  difficulty: text("difficulty"),
+  tags: jsonb("tags").$type<string[]>(),
+  uploadedByRole: text("uploaded_by_role"),
+  uploadedByUserId: text("uploaded_by_user_id"),
+  isPublished: boolean("is_published").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertArticleSchema = createInsertSchema(articles)
   .omit({ id: true });
@@ -118,6 +147,33 @@ export const insertWeeklyWellnessPostSchema = createInsertSchema(weeklyWellnessP
     isPublished: z.boolean().optional().default(true),
   });
 
+export const insertMediaAssetSchema = createInsertSchema(mediaAssets)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    title: z.string().min(2, "Title is required"),
+    mediaType: z.enum(["image", "video", "audio"]),
+    originalFilename: z.string().min(1).optional().nullable(),
+    storageUrl: z.string().min(1, "A storage URL is required"),
+    remoteStorageUrl: z.string().min(1).optional().nullable(),
+    storageProvider: z.string().min(1).optional().nullable(),
+    thumbnailUrl: z.string().min(1).optional().nullable(),
+    altText: z.string().min(1).optional().nullable(),
+    description: z.string().min(1).optional().nullable(),
+    mimeType: z.string().min(1).optional().nullable(),
+    fileSizeBytes: z.coerce.number().int().min(0).optional().nullable(),
+    durationSeconds: z.coerce.number().int().min(0).optional().nullable(),
+    width: z.coerce.number().int().min(1).optional().nullable(),
+    height: z.coerce.number().int().min(1).optional().nullable(),
+    exerciseFocus: z.string().min(1).optional().nullable(),
+    bodyRegion: z.string().min(1).optional().nullable(),
+    equipment: z.string().min(1).optional().nullable(),
+    difficulty: z.string().min(1).optional().nullable(),
+    tags: z.array(z.string().min(1)).optional().default([]),
+    uploadedByRole: z.string().min(1).optional().nullable(),
+    uploadedByUserId: z.string().min(1).optional().nullable(),
+    isPublished: z.boolean().optional().default(true),
+  });
+
 // Types
 export type Article = typeof articles.$inferSelect;
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
@@ -139,3 +195,6 @@ export type InsertServiceSignup = z.infer<typeof insertServiceSignupSchema>;
 
 export type WeeklyWellnessPost = typeof weeklyWellnessPosts.$inferSelect;
 export type InsertWeeklyWellnessPost = z.infer<typeof insertWeeklyWellnessPostSchema>;
+
+export type MediaAsset = typeof mediaAssets.$inferSelect;
+export type InsertMediaAsset = z.infer<typeof insertMediaAssetSchema>;

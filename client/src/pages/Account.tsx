@@ -10,6 +10,7 @@ function Account() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"client" | "coach" | "physician" | "admin">("client");
 
   if (user) {
     return (
@@ -44,10 +45,23 @@ function Account() {
               <Label>Password</Label>
               <Input type="password" className="mt-2 h-12 rounded-2xl" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
+            <div>
+              <Label>Role</Label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as "client" | "coach" | "physician" | "admin")}
+                className="mt-2 h-12 w-full rounded-2xl border border-primary/10 bg-white px-3 text-sm"
+              >
+                <option value="client">Client</option>
+                <option value="coach">Coach / Personal Trainer</option>
+                <option value="physician">Physician / Wellness Trainer</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
             <Button
               className="rounded-full"
               onClick={async () => {
-                await register({ email, password });
+                await register({ email, password, role });
                 toast({ title: "Account created" });
               }}
             >
