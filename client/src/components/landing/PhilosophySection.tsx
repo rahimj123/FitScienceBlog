@@ -22,7 +22,7 @@ export function PhilosophySection() {
                   long-term wellbeing.
                 </p>
                 <p>
-                  Wellness with Dr. Jindani emphasizes balanced movement, supportive routines,
+                  Wellness&Health4all emphasizes balanced movement, supportive routines,
                   realistic progress, and a mindset that values consistency over perfection. The
                   result is a healthier lifestyle that feels sustainable, empowering, and aligned
                   with real life.

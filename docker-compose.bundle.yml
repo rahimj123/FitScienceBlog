@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fitscience_db
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_USER: ${PGUSER:-fitscience}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-fitscience_secret}
+      POSTGRES_DB: ${PGDATABASE:-fitscience}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-fitscience} -d ${PGDATABASE:-fitscience}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    image: wellnesshealth4all:portable
+    container_name: fitscience_app
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${PGUSER:-fitscience}:${PGPASSWORD:-fitscience_secret}@db:5432/${PGDATABASE:-fitscience}
+      DIRECT_URL: postgresql://${PGUSER:-fitscience}:${PGPASSWORD:-fitscience_secret}@db:5432/${PGDATABASE:-fitscience}
+      PGHOST: db
+      PGUSER: ${PGUSER:-fitscience}
+      PGPASSWORD: ${PGPASSWORD:-fitscience_secret}
+      PGDATABASE: ${PGDATABASE:-fitscience}
+    ports:
+      - "5001:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local

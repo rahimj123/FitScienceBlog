@@ -1,0 +1,77 @@
+version: "3.9"
+
+# ── Wellness with Dr. Jindani — Full Stack Docker Compose ──────────────────
+#
+#  Services:
+#    db   → PostgreSQL 16 (data persisted in a named volume)
+#    app  → Node.js app (dev mode with hot-reload by default)
+#
+#  Quick start:
+#    docker compose up --build
+#    Then open → http://localhost:5000
+#
+#  Production mode:
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL Database ────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: fitscience_db
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_USER: ${PGUSER:-fitscience}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-fitscience_secret}
+      POSTGRES_DB: ${PGDATABASE:-fitscience}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-fitscience} -d ${PGDATABASE:-fitscience}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Node.js Application (Development) ─────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development          # swap to "production" for a built image
+    container_name: fitscience_app
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: development
+      # Override DB host to point at the Docker service name
+      DATABASE_URL: postgresql://${PGUSER:-fitscience}:${PGPASSWORD:-fitscience_secret}@db:5432/${PGDATABASE:-fitscience}
+      DIRECT_URL: postgresql://${PGUSER:-fitscience}:${PGPASSWORD:-fitscience_secret}@db:5432/${PGDATABASE:-fitscience}
+      PGHOST: db
+      PGUSER: ${PGUSER:-fitscience}
+      PGPASSWORD: ${PGPASSWORD:-fitscience_secret}
+      PGDATABASE: ${PGDATABASE:-fitscience}
+    ports:
+      - "5001:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount source for hot-reload (dev only)
+      - .:/app
+      # Keep container's node_modules isolated from the host
+      - /app/node_modules
+      # Persist uploaded media files
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local

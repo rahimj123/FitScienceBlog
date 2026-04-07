@@ -33,7 +33,7 @@ export function ChatbotWidget() {
     {
       role: "assistant",
       content:
-        "Welcome to Wellness with Dr. Jindani. I can identify your stage of change, suggest the right membership tier, and guide you into the most suitable next step.",
+        "Welcome to Wellness&Health4all. I can identify your stage of change, suggest the right membership tier, and guide you into the most suitable next step.",
     },
   ]);
   const [sessionId, setSessionId] = useState<string | null>(null);

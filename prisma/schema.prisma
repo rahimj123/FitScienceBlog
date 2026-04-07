@@ -47,6 +47,10 @@ model Profile {
   chatbotSessions      ChatSession[]
   followUpTasks        FollowUpTask[]
   userMemberships      UserMembership[]
+  providerConnections  ProviderClientConnection[]
+  biomarkerResults     UserBiomarkerResult[]
+  labTests             LabTest[]
+  userProtocols        UserProtocol[]
 }
 
 model IntakeForm {
@@ -346,4 +350,140 @@ model CorporateLead {
   status               String   @default("new")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+// ── Wellness & Health Dashboard Models ─────────────────────────────────────
+
+model WellnessProvider {
+  id                String   @id @default(cuid())
+  firstName         String
+  lastName          String
+  providerType      String   // "physician" | "trainer" | "nutritionist" | "wellness_doctor"
+  specialization    String?
+  credentials       String[]
+  bio               String?
+  profileImageUrl   String?
+  email             String?  @unique
+  phone             String?
+  locationCity      String?
+  locationCountry   String?
+  isVerified        Boolean  @default(false)
+  isAcceptingClients Boolean @default(true)
+  availabilityNote  String?
+  linkedinUrl       String?
+  websiteUrl        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  clientConnections ProviderClientConnection[]
+  protocols         HealthProtocol[]
+}
+
+model ProviderClientConnection {
+  id            String   @id @default(cuid())
+  profileId     String
+  providerId    String
+  status        String   @default("pending") // "pending" | "active" | "paused" | "ended"
+  requestNote   String?
+  acceptedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  provider      WellnessProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, providerId])
+}
+
+model BiomarkerCategory {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  slug        String       @unique
+  description String?
+  icon        String?
+  colorHex    String?
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  biomarkers  Biomarker[]
+}
+
+model Biomarker {
+  id                  String   @id @default(cuid())
+  categoryId          String
+  name                String
+  slug                String   @unique
+  unit                String
+  description         String?
+  whyItMatters        String?
+  whatAffectsIt       String?
+  referenceRangeLow   Float?
+  referenceRangeHigh  Float?
+  optimalRangeLow     Float?
+  optimalRangeHigh    Float?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  category            BiomarkerCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  results             UserBiomarkerResult[]
+}
+
+model UserBiomarkerResult {
+  id            String   @id @default(cuid())
+  profileId     String
+  biomarkerId   String
+  labTestId     String?
+  value         Float
+  status        String   // "in_range" | "low" | "high" | "critical_low" | "critical_high"
+  note          String?
+  testedAt      DateTime
+  createdAt     DateTime @default(now())
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  biomarker     Biomarker @relation(fields: [biomarkerId], references: [id], onDelete: Cascade)
+  labTest       LabTest?  @relation(fields: [labTestId], references: [id], onDelete: SetNull)
+}
+
+model LabTest {
+  id              String   @id @default(cuid())
+  profileId       String
+  testType        String   // "annual" | "follow_up" | "on_demand"
+  testName        String
+  status          String   @default("scheduled") // "scheduled" | "sample_collected" | "processing" | "completed"
+  scheduledAt     DateTime?
+  completedAt     DateTime?
+  notes           String?
+  recommendedBy   String?  // provider id or "system"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  biomarkerResults UserBiomarkerResult[]
+}
+
+model HealthProtocol {
+  id              String   @id @default(cuid())
+  providerId      String?
+  title           String
+  protocolType    String   // "nutrition" | "supplement" | "exercise" | "sleep" | "whole_body"
+  goal            String?
+  durationWeeks   Int?
+  description     String
+  steps           Json     // array of step objects { order, instruction, frequency }
+  tags            String[]
+  isTemplate      Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  provider        WellnessProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  userProtocols   UserProtocol[]
+}
+
+model UserProtocol {
+  id              String   @id @default(cuid())
+  profileId       String
+  protocolId      String
+  assignedBy      String?  // userId of assigner
+  status          String   @default("active") // "active" | "paused" | "completed"
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  adherenceScore  Int?     // 0-100
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  protocol        HealthProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
 }

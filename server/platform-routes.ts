@@ -149,7 +149,7 @@ function sendSummaryPdf(res: Response, summary: Awaited<ReturnType<typeof getCli
   res.setHeader("Content-Disposition", `inline; filename="${summary?.name.replaceAll(" ", "-").toLowerCase()}-summary.pdf"`);
   doc.pipe(res);
 
-  doc.fontSize(20).text("Wellness with Dr. Jindani", { align: "left" });
+  doc.fontSize(20).text("Wellness&Health4all", { align: "left" });
   doc.moveDown(0.5);
   doc.fontSize(16).text("Client Intake Summary");
   doc.moveDown();
@@ -213,7 +213,7 @@ function sendChatSessionPdf(
   res.setHeader("Content-Disposition", `inline; filename="chatbot-session-${session.id}.pdf"`);
   doc.pipe(res);
 
-  doc.fontSize(20).text("Wellness with Dr. Jindani");
+  doc.fontSize(20).text("Wellness&Health4all");
   doc.moveDown(0.5);
   doc.fontSize(16).text("Chatbot Intake Summary");
   doc.moveDown();

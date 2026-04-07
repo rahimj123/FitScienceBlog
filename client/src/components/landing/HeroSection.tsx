@@ -20,7 +20,7 @@ export function HeroSection() {
               Whole-person wellness guided by fitness coaching and physician-informed care
             </h1>
             <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground sm:text-xl">
-              Wellness with Dr. Jindani brings together Rahim Jindani&apos;s practical movement and
+              Wellness&Health4all brings together Rahim Jindani&apos;s practical movement and
               wellness coaching with Dr. Shireen Jindani&apos;s physician-guided internal medicine
               wellness review for clients who need a broader, more medically informed pathway.
             </p>

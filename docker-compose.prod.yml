@@ -1,0 +1,20 @@
+version: "3.9"
+
+# ── Production overrides ─────────────────────────────────────────────────────
+#  Usage:
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  app:
+    build:
+      target: production
+    environment:
+      NODE_ENV: production
+    volumes:
+      # In production we don't mount source — use the built image
+      - uploads_data:/app/uploads
+    restart: always
+
+  db:
+    restart: always

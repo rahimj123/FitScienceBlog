@@ -4,6 +4,7 @@ import { registerMembershipRoutes } from "./membership-routes";
 import { deleteMediaFile, saveMediaFile } from "./media-storage";
 import { storage } from "./storage";
 import { registerPlatformRoutes } from "./platform-routes";
+import { registerWellnessRoutes } from "./wellness-routes";
 import { 
   insertArticleSchema, 
   insertCategorySchema, 
@@ -60,6 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   registerMembershipRoutes(app);
   await registerPlatformRoutes(app);
+  await registerWellnessRoutes(app);
 
   // Get all articles
   app.get("/api/articles", async (req: Request, res: Response) => {

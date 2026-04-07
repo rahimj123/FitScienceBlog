@@ -85,7 +85,7 @@ export type TestimonialItem = {
 };
 
 export const navigation: NavItem[] = [
-  { label: "Experts", href: "#experts" },
+  { label: "Network", href: "#experts" },
   { label: "How It Works", href: "#process" },
   { label: "Pathways", href: "#pathways" },
   { label: "Memberships", href: "#memberships" },
@@ -370,7 +370,7 @@ export const testimonials: TestimonialItem[] = [
 ];
 
 export const brand = {
-  name: "Wellness with Dr. Jindani",
+  name: "Wellness&Health4all",
   heroImage:
     "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1400&q=80",
 };

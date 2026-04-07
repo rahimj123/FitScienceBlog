@@ -1,6 +1,5 @@
-import { Linkedin } from "lucide-react";
+import { Stethoscope, Dumbbell, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { teamMembers } from "./content";
 import { Reveal } from "./Reveal";
 import { SectionHeading } from "./SectionHeading";
 
@@ -10,52 +9,51 @@ export function AboutSection() {
       <div className="container-custom">
         <Reveal>
           <SectionHeading
-            eyebrow="Meet The Experts"
-            title="A premium collaborative model shaped by two distinct areas of expertise"
-            description="Clients begin with clear guidance on who they work with, what each professional does, and when physician involvement becomes part of the pathway."
+            eyebrow="Join The Network"
+            title="An expanding wellness and health network for qualified professionals"
+            description="We are opening this platform to verified physicians and personal trainers who want to support clients through practical, science-informed care."
           />
         </Reveal>
-        <div className="mt-14 grid gap-6 lg:grid-cols-2">
-          {teamMembers.map((member, index) => (
-            <Reveal key={member.name} delay={index * 0.08}>
-              <article className="overflow-hidden rounded-[2rem] border border-primary/10 bg-white shadow-[0_22px_70px_-38px_rgba(33,56,45,0.35)]">
-                <div className="grid gap-0 md:grid-cols-[0.9fr_1.1fr]">
-                  <div className="bg-[#f6f2ea] p-5">
-                    <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-inner">
-                      <img
-                        src={member.image}
-                        alt={`${member.name} profile placeholder`}
-                        className="h-[22rem] w-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <div className="p-7 sm:p-8">
-                    <p className="text-sm uppercase tracking-[0.2em] text-primary/70">{member.role}</p>
-                    <h3 className="mt-3 text-3xl font-semibold text-foreground">{member.name}</h3>
-                    <p className="mt-5 text-base leading-7 text-muted-foreground">{member.bio}</p>
-                    <div className="mt-6 rounded-[1.25rem] bg-[#f8f5ef] p-5">
-                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary/70">Focus Area</p>
-                      <p className="mt-3 text-base leading-7 text-muted-foreground">{member.focus}</p>
-                    </div>
-                    <div className="mt-6 space-y-3">
-                      {member.credentials.map((item) => (
-                        <div key={item} className="rounded-2xl border border-primary/10 px-4 py-3 text-sm text-foreground/85">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                    <Button asChild className="mt-6 rounded-full">
-                      <a href={member.linkedin} target="_blank" rel="noreferrer">
-                        <Linkedin className="h-4 w-4" />
-                        View LinkedIn
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </article>
-            </Reveal>
-          ))}
+        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+          <Reveal delay={0.04}>
+            <article className="rounded-[2rem] border border-primary/10 bg-white p-7 shadow-[0_22px_70px_-38px_rgba(33,56,45,0.35)]">
+              <Stethoscope className="h-8 w-8 text-primary" />
+              <h3 className="mt-4 text-2xl font-semibold text-foreground">For Physicians</h3>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">
+                Join as a licensed physician to offer consultation, health review, and medically informed wellness guidance.
+              </p>
+            </article>
+          </Reveal>
+          <Reveal delay={0.12}>
+            <article className="rounded-[2rem] border border-primary/10 bg-white p-7 shadow-[0_22px_70px_-38px_rgba(33,56,45,0.35)]">
+              <Dumbbell className="h-8 w-8 text-primary" />
+              <h3 className="mt-4 text-2xl font-semibold text-foreground">For Personal Trainers</h3>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">
+                Join as a certified trainer to deliver practical coaching in movement, strength, mobility, and habit support.
+              </p>
+            </article>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <article className="rounded-[2rem] border border-primary/10 bg-white p-7 shadow-[0_22px_70px_-38px_rgba(33,56,45,0.35)]">
+              <Users className="h-8 w-8 text-primary" />
+              <h3 className="mt-4 text-2xl font-semibold text-foreground">Growing Professional Community</h3>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">
+                This section is intentionally profile-free while the platform expands to welcome qualified wellness and health professionals.
+              </p>
+            </article>
+          </Reveal>
         </div>
+        <Reveal delay={0.26}>
+          <div className="mt-8 rounded-[2rem] border border-primary/10 bg-[#f8f5ef] p-7">
+            <p className="text-base leading-7 text-muted-foreground">
+              Are you a physician or personal trainer interested in joining Wellness&Health4all?
+              Reach out and we will share onboarding details.
+            </p>
+            <Button asChild className="mt-5 rounded-full">
+              <a href="#contact">Apply to Join</a>
+            </Button>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
